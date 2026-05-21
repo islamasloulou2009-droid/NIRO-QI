@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Niro AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg-void:#08080f;
+  --bg-deep:#0e0e1a;
+  --bg-surface:#14141f;
+  --bg-card:#1a1a28;
+  --bg-hover:#21213a;
+  --neon:#4f8fff;
+  --neon-dim:#2a4aaa;
+  --purple:#a78bfa;
+  --purple-dim:#6d4dc9;
+  --text-primary:#f0f0ff;
+  --text-secondary:#9090b8;
+  --text-muted:#5a5a7a;
+  --border:#2a2a3f;
+  --border-bright:#3a3a5f;
+  --ai-bubble:#181828;
+  --sidebar-w:270px;
+  --user-bubble-from:#192870;
+  --user-bubble-to:#2d1b6e;
+}
+:root.light{
+  --bg-void:#f4f4fa;
+  --bg-deep:#eaeaf2;
+  --bg-surface:#e2e2ec;
+  --bg-card:#d8d8e6;
+  --bg-hover:#cecede;
+  --neon:#2a5fd6;
+  --neon-dim:#4a7aee;
+  --purple:#6d3fc9;
+  --purple-dim:#8a5dd6;
+  --text-primary:#0c0c1a;
+  --text-secondary:#44446a;
+  --text-muted:#88889a;
+  --border:#c0c0d4;
+  --border-bright:#a8a8c4;
+  --ai-bubble:#e4e4f0;
+  --user-bubble-from:#2850b8;
+  --user-bubble-to:#4820a0;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg-void);color:var(--text-primary);font-family:'Cairo','Space Grotesk',sans-serif;transition:background .4s,color .4s}
+html *{transition:background-color .4s,border-color .4s,color .4s !important}
+body{display:flex;align-items:center;justify-content:center}
+#root{width:100%;max-width:430px;height:100vh;height:100dvh;position:relative;overflow:hidden;background:var(--bg-void);margin:0 auto}
+
+/* ── WELCOME ── */
+#welcome{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2.5rem 2rem;background:var(--bg-void);z-index:100;transition:opacity .5s,transform .5s}
+#welcome.hidden{opacity:0;transform:translateY(-24px);pointer-events:none}
+.logo-mark{width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,var(--neon-dim),var(--purple-dim));display:flex;align-items:center;justify-content:center;margin-bottom:1.5rem;box-shadow:0 0 50px rgba(79,143,255,.3),0 0 100px rgba(167,139,250,.15),inset 0 1px 0 rgba(255,255,255,.1)}
+.logo-inner{width:40px;height:40px;background:linear-gradient(135deg,var(--neon),var(--purple));border-radius:12px;clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%)}
+.brand-name{font-size:2.2rem;font-weight:700;letter-spacing:.06em;background:linear-gradient(135deg,var(--neon),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.3rem}
+.brand-sub{font-size:.85rem;color:var(--text-muted);margin-bottom:3rem;letter-spacing:.1em;direction:rtl}
+.welcome-title{font-size:1.45rem;font-weight:600;text-align:center;margin-bottom:.65rem;line-height:1.4;direction:rtl}
+.welcome-desc{font-size:.9rem;color:var(--text-secondary);text-align:center;margin-bottom:2.5rem;line-height:1.75;max-width:290px;direction:rtl}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:.8rem;width:100%;max-width:300px;padding:1rem 1.5rem;background:var(--bg-card);border:1px solid var(--border-bright);border-radius:14px;color:var(--text-primary);font-size:.95rem;font-weight:600;cursor:pointer;transition:all .25s;font-family:inherit;margin-bottom:1rem;direction:rtl}
+.btn-google:hover{background:var(--bg-hover);border-color:var(--neon);box-shadow:0 0 25px rgba(79,143,255,.2),0 4px 20px rgba(0,0,0,.4)}
+.btn-guest{background:none;border:none;color:var(--text-muted);font-size:.85rem;cursor:pointer;padding:.6rem 1rem;font-family:inherit;transition:color .2s}
+.btn-guest:hover{color:var(--text-secondary)}
+.dots{display:flex;gap:.5rem;margin-bottom:2.2rem}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--border-bright);transition:all .3s}
+.dot.active{background:linear-gradient(135deg,var(--neon),var(--purple));width:20px;border-radius:3px}
+.welcome-glow{position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(79,143,255,.08) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-60%);pointer-events:none}
+
+/* ── APP ── */
+#app{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .5s}
+#app.visible{opacity:1;pointer-events:all}
+
+/* ── OVERLAY ── */
+#overlay{position:absolute;inset:0;background:rgba(0,0,0,.65);z-index:50;opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(3px)}
+#overlay.show{opacity:1;pointer-events:all}
+
+/* ── SIDEBAR ── */
+#sidebar{position:absolute;top:0;bottom:0;right:0;width:var(--sidebar-w);background:var(--bg-deep);border-left:1px solid var(--border);z-index:60;transform:translateX(100%);transition:transform .38s cubic-bezier(.25,.46,.45,.94);display:flex;flex-direction:column}
+#sidebar.open{transform:translateX(0)}
+.sb-header{padding:1.3rem 1rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem}
+.sb-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--neon-dim),var(--purple-dim));display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;flex-shrink:0;border:2px solid rgba(79,143,255,.3)}
+.sb-user-info{flex:1;min-width:0}
+.sb-username{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-plan{font-size:.7rem;color:var(--neon);background:rgba(79,143,255,.12);padding:.15rem .55rem;border-radius:4px;display:inline-block;margin-top:.2rem;border:1px solid rgba(79,143,255,.2)}
+.sb-close{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;padding:.3rem;line-height:1;transition:color .2s;border-radius:6px}
+.sb-close:hover{color:var(--text-primary);background:var(--bg-hover)}
+.sb-new{margin:.9rem .9rem .4rem;display:flex;align-items:center;gap:.6rem;padding:.8rem 1rem;background:linear-gradient(135deg,rgba(42,74,170,.25),rgba(109,77,201,.25));border:1px solid rgba(79,143,255,.2);border-radius:12px;color:var(--text-primary);font-size:.88rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;direction:rtl}
+.sb-new:hover{background:linear-gradient(135deg,rgba(42,74,170,.45),rgba(109,77,201,.45));box-shadow:0 0 20px rgba(79,143,255,.15)}
+.sb-new-icon{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--neon),var(--purple));display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.75rem}
+.sb-section{padding:.8rem 1rem .3rem;font-size:.68rem;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+.sb-list{flex:1;overflow-y:auto;padding:.2rem .7rem .7rem}
+.sb-list::-webkit-scrollbar{width:2px}
+.sb-list::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px}
+.sb-item{padding:.65rem .75rem;border-radius:10px;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:.6rem;margin-bottom:2px;direction:rtl}
+.sb-item:hover{background:var(--bg-hover)}
+.sb-item.active{background:rgba(79,143,255,.1);border:1px solid rgba(79,143,255,.18)}
+.sb-item-icon{font-size:.82rem;flex-shrink:0;opacity:.45}
+.sb-item-text{font-size:.8rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.sb-item.active .sb-item-text{color:var(--text-primary)}
+.sb-footer{padding:1rem .9rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:2px}
+.sb-footer-btn{display:flex;align-items:center;gap:.6rem;width:100%;padding:.65rem .75rem;background:none;border:none;color:var(--text-secondary);font-size:.83rem;cursor:pointer;border-radius:10px;transition:all .15s;font-family:inherit;direction:rtl}
+.sb-footer-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
+.sb-footer-btn.danger{color:#f87171}
+.sb-footer-btn.danger:hover{background:rgba(248,113,113,.08);color:#f87171}
+.sb-empty-convs{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;gap:.6rem;opacity:.5}
+.sb-empty-icon{font-size:1.6rem}
+.sb-empty-text{font-size:.78rem;color:var(--text-muted);text-align:center;line-height:1.6;direction:rtl}
+
+/* ── SUB PAGES (Settings / Help) ── */
+#page-overlay{position:absolute;inset:0;z-index:70;display:flex;flex-direction:column;background:var(--bg-void);transform:translateY(100%);transition:transform .38s cubic-bezier(.25,.46,.45,.94)}
+#page-overlay.show{transform:translateY(0)}
+.page-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;background:var(--bg-deep);border-bottom:1px solid var(--border);flex-shrink:0}
+.page-back{background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:.45rem;border-radius:8px;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.page-back:hover{background:var(--bg-hover);color:var(--text-primary)}
+.page-title{flex:1;font-size:1rem;font-weight:600;direction:rtl}
+.page-body{flex:1;overflow-y:auto;padding:1.5rem 1.2rem}
+.page-body::-webkit-scrollbar{width:3px}
+.page-body::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px}
+.page-section{margin-bottom:1.75rem}
+.page-section-title{font-size:.72rem;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:.75rem;direction:rtl}
+.page-row{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;direction:rtl;gap:.75rem}
+.page-row-label{font-size:.88rem;color:var(--text-primary);font-weight:500}
+.page-row-sub{font-size:.75rem;color:var(--text-muted);margin-top:.15rem;direction:rtl}
+.page-row-info{font-size:.78rem;color:var(--text-secondary);text-align:left}
+.page-tag{font-size:.7rem;padding:.2rem .55rem;border-radius:5px;background:rgba(79,143,255,.12);color:var(--neon);border:1px solid rgba(79,143,255,.2)}
+.page-toggle{width:38px;height:22px;border-radius:11px;background:var(--neon);border:none;cursor:pointer;position:relative;flex-shrink:0;transition:background .2s}
+.page-toggle::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;right:3px;transition:right .2s}
+.page-toggle.off{background:var(--border-bright)}
+.page-toggle.off::after{right:19px}
+.help-card{padding:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;direction:rtl;cursor:pointer;transition:background .15s}
+.help-card:hover{background:var(--bg-hover)}
+.help-card-title{font-size:.88rem;font-weight:600;margin-bottom:.3rem}
+.help-card-sub{font-size:.78rem;color:var(--text-muted);line-height:1.5}
+.page-divider{height:1px;background:var(--border);margin:1.25rem 0}
+
+/* ── AUTH LOADING ── */
+#auth-loading{position:absolute;inset:0;background:var(--bg-void);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem}
+#auth-loading.hidden{display:none}
+.auth-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--neon);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.auth-loading-text{font-size:.85rem;color:var(--text-muted)}
+.btn-google:disabled{opacity:.6;cursor:not-allowed}
+.welcome-error{font-size:.78rem;color:#f87171;text-align:center;margin-top:-.5rem;margin-bottom:.5rem;min-height:1.2em;direction:rtl}
+
+/* ── TOPBAR ── */
+#topbar{display:flex;align-items:center;padding:.75rem 1rem;background:var(--bg-deep);border-bottom:1px solid var(--border);gap:.75rem;flex-shrink:0}
+.tb-menu{background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:.45rem;border-radius:8px;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.tb-menu:hover{background:var(--bg-hover);color:var(--text-primary)}
+.tb-logo{flex:1;display:flex;align-items:center;gap:.5rem}
+.tb-logo-mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,var(--neon),var(--purple));display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(79,143,255,.3)}
+.tb-logo-gem{width:14px;height:14px;clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%);background:#fff}
+.tb-name{font-size:1.05rem;font-weight:700;letter-spacing:.05em;background:linear-gradient(135deg,var(--neon),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tb-model{font-size:.68rem;color:var(--text-muted);background:var(--bg-surface);padding:.18rem .5rem;border-radius:5px;border:1px solid var(--border)}
+.tb-new-btn{background:none;border:1px solid var(--border);color:var(--text-secondary);padding:.42rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:.4rem;font-family:inherit;white-space:nowrap}
+.tb-new-btn:hover{border-color:var(--neon);color:var(--neon);background:rgba(79,143,255,.08)}
+
+/* ── CHAT ── */
+#chat-area{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.8rem;scroll-behavior:smooth}
+#chat-area::-webkit-scrollbar{width:3px}
+#chat-area::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px}
+
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem}
+.empty-logo{width:60px;height:60px;border-radius:20px;background:linear-gradient(135deg,var(--neon-dim),var(--purple-dim));display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;box-shadow:0 0 35px rgba(79,143,255,.25)}
+.empty-gem{width:30px;height:30px;clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%);background:linear-gradient(135deg,var(--neon),var(--purple))}
+.empty-title{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;direction:rtl}
+.empty-sub{font-size:.85rem;color:var(--text-muted);margin-bottom:2rem;line-height:1.7;direction:rtl}
+.suggestions{display:flex;flex-direction:column;gap:.5rem;width:100%}
+.sugg-btn{padding:.8rem 1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;color:var(--text-secondary);font-size:.82rem;cursor:pointer;transition:all .2s;text-align:right;font-family:inherit;line-height:1.45;direction:rtl}
+.sugg-btn:hover{background:var(--bg-hover);border-color:rgba(79,143,255,.4);color:var(--text-primary)}
+
+/* BUBBLES */
+.msg-row{display:flex;flex-direction:column;max-width:86%;animation:fadeUp .3s ease both}
+.msg-row.user{align-self:flex-start}
+.msg-row.ai{align-self:flex-end}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.bubble{padding:.85rem 1.15rem;border-radius:18px;font-size:.88rem;line-height:1.7;word-break:break-word}
+.msg-row.user .bubble{background:linear-gradient(135deg,var(--user-bubble-from),var(--user-bubble-to));border:1px solid rgba(79,143,255,.25);border-bottom-right-radius:5px;color:#f0f0ff}
+.msg-row.ai .bubble{background:var(--ai-bubble);border:1px solid var(--border);border-bottom-left-radius:5px;color:var(--text-primary)}
+.msg-row.ai .bubble.typing{display:flex;align-items:center;gap:.45rem;padding:.95rem 1.25rem}
+.typing-dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);animation:blink 1.3s infinite}
+.typing-dot:nth-child(2){animation-delay:.22s}
+.typing-dot:nth-child(3){animation-delay:.44s}
+@keyframes blink{0%,80%,100%{opacity:.2;transform:scale(.85)}40%{opacity:1;transform:scale(1)}}
+.msg-time{font-size:.63rem;color:var(--text-muted);margin-top:.3rem;padding:0 .3rem}
+.msg-row.user .msg-time{text-align:right;direction:ltr}
+.msg-row.ai .msg-time{text-align:left;direction:ltr}
+.ai-label{display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem;padding-right:.3rem;flex-direction:row-reverse;justify-content:flex-end}
+.ai-dot{width:20px;height:20px;border-radius:7px;background:linear-gradient(135deg,var(--neon),var(--purple));flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ai-dot-gem{width:10px;height:10px;clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%);background:#fff}
+.ai-label-text{font-size:.7rem;color:var(--text-muted)}
+
+/* INPUT */
+#input-wrap{padding:.8rem 1rem 1.2rem;background:var(--bg-deep);border-top:1px solid var(--border);flex-shrink:0}
+.input-box{display:flex;align-items:flex-end;gap:.6rem;background:var(--bg-surface);border:1px solid var(--border-bright);border-radius:22px;padding:.65rem .65rem .65rem 1.1rem;transition:border-color .2s,box-shadow .2s}
+.input-box:focus-within{border-color:var(--neon);box-shadow:0 0 0 3px rgba(79,143,255,.1),0 4px 20px rgba(0,0,0,.3)}
+#msg-input{flex:1;background:none;border:none;outline:none;color:var(--text-primary);font-size:.9rem;font-family:inherit;resize:none;max-height:130px;min-height:24px;line-height:1.55;padding:0;direction:rtl}
+#msg-input::placeholder{color:var(--text-muted)}
+.send-btn{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--neon),var(--purple));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;box-shadow:0 2px 12px rgba(79,143,255,.3)}
+.send-btn:hover{transform:scale(1.09);box-shadow:0 0 20px rgba(79,143,255,.5)}
+.send-btn:active{transform:scale(.93)}
+.send-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none}
+.input-hint{text-align:center;font-size:.67rem;color:var(--text-muted);margin-top:.55rem;direction:rtl}
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- AUTH LOADING SCREEN -->
+<div id="auth-loading">
+  <div class="auth-spinner"></div>
+  <div class="auth-loading-text">جارٍ التحقق من الحساب...</div>
+</div>
+
+<!-- WELCOME -->
+<div id="welcome" class="hidden">
+  <div class="welcome-glow"></div>
+  <div class="logo-mark"><div class="logo-inner"></div></div>
+  <div class="brand-name">Niro AI</div>
+  <div class="brand-sub">مساعدك الذكي الشخصي</div>
+  <div class="dots">
+    <div class="dot active"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+  <div class="welcome-title">مرحباً بك في Niro AI ✦</div>
+  <div class="welcome-desc">ذكاء اصطناعي متقدم يفهمك ويساعدك في كل ما تحتاجه، بالعربية والإنجليزية</div>
+  <div class="welcome-error" id="auth-error"></div>
+  <button class="btn-google" id="btn-google" onclick="signInWithGoogle()">
+    <svg width="20" height="20" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+    تسجيل الدخول بـ Google
+  </button>
+  <button class="btn-guest" onclick="continueAsGuest()">المتابعة كضيف ←</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- OVERLAY -->
+  <div id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-header">
+      <div class="sb-avatar" id="sb-avatar">ن</div>
+      <div class="sb-user-info">
+        <div class="sb-username" id="sb-username">مستخدم Niro</div>
+        <div class="sb-email" id="sb-email" style="font-size:.7rem;color:var(--text-muted);margin-top:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:right;max-width:140px;"></div>
+        <div class="sb-plan">مجاني</div>
+      </div>
+      <button class="sb-close" onclick="closeSidebar()">✕</button>
+    </div>
+    <button class="sb-new" onclick="newChat();closeSidebar()">
+      <div class="sb-new-icon">✦</div>
+      محادثة جديدة
+    </button>
+    <div class="sb-section">المحادثات الأخيرة</div>
+    <div class="sb-list" id="sb-list">
+      <div class="sb-empty-convs">
+        <div class="sb-empty-icon">💬</div>
+        <div class="sb-empty-text">لا توجد محادثات بعد<br/>ابدأ محادثة جديدة!</div>
+      </div>
+    </div>
+    <div class="sb-footer">
+      <button class="sb-footer-btn" onclick="openPage('settings')">⚙️ &nbsp; الإعدادات</button>
+      <button class="sb-footer-btn" onclick="openPage('help')">❓ &nbsp; المساعدة والدعم</button>
+      <button class="sb-footer-btn danger" onclick="logout()">🚪 &nbsp; تسجيل الخروج</button>
+    </div>
+  </div>
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <button class="tb-menu" onclick="openSidebar()" aria-label="القائمة">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <div class="tb-logo">
+      <div class="tb-logo-mark"><div class="tb-logo-gem"></div></div>
+      <span class="tb-name">Niro</span>
+      <span class="tb-model">AI Beta</span>
+    </div>
+    <button class="tb-new-btn" onclick="newChat()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      جديد
+    </button>
+  </div>
+
+  <!-- CHAT AREA -->
+  <div id="chat-area">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-logo"><div class="empty-gem"></div></div>
+      <div class="empty-title">كيف يمكنني مساعدتك؟</div>
+      <div class="empty-sub">اسألني أي شيء — أنا هنا للمساعدة دائماً</div>
+      <div class="suggestions">
+        <button class="sugg-btn" onclick="sendSuggestion('اشرح لي كيف يعمل الذكاء الاصطناعي')">🤖 اشرح لي كيف يعمل الذكاء الاصطناعي</button>
+        <button class="sugg-btn" onclick="sendSuggestion('ساعدني في كتابة رسالة احترافية')">✍️ ساعدني في كتابة رسالة احترافية</button>
+        <button class="sugg-btn" onclick="sendSuggestion('ما هي أفضل طريقة لتعلم البرمجة؟')">💻 ما هي أفضل طريقة لتعلم البرمجة؟</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS / HELP PAGE OVERLAY -->
+  <div id="page-overlay">
+    <div class="page-header">
+      <button class="page-back" onclick="closePage()" aria-label="رجوع">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="page-title" id="page-title">الإعدادات</div>
+    </div>
+    <div class="page-body" id="page-body"></div>
+  </div>
+
+  <!-- INPUT -->
+  <div id="input-wrap">
+    <div class="input-box">
+      <textarea id="msg-input" placeholder="اكتب رسالتك هنا..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()" aria-label="إرسال">
+        <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+    <div class="input-hint">Niro AI · نموذج تجريبي — سيتم ربطه بـ Gemini قريباً</div>
+  </div>
+
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+/* ── FIREBASE INIT ── */
+const firebaseConfig = {
+  apiKey: "AIzaSyBxN-kmgS4wpcxmXA6_vYmoDUyH-6HUYV4",
+  authDomain: "niro-ai-bc33a.firebaseapp.com",
+  projectId: "niro-ai-bc33a",
+  storageBucket: "niro-ai-bc33a.firebasestorage.app",
+  messagingSenderId: "785891392949",
+  appId: "1:785891392949:web:db245d73c87c7166ad2dfc",
+  measurementId: "G-KGNM6MWLW8"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: 'select_account' });
+
+/* ── AI CONFIG (Vercel Backend) ── */
+const BACKEND_URL = "https://niro-ai-backend.vercel.app/api/chat";
+
+const SYSTEM_PROMPT = `أنت Niro AI، مساعد ذكاء اصطناعي ذكي ومفيد وودود.
+- تتحدث بالعربية دائماً ما لم يتحدث المستخدم بلغة أخرى
+- ردودك واضحة ومنظمة ومفيدة
+- شخصيتك دافئة وإيجابية
+- تجيب بشكل مباشر وبدون مقدمات طويلة غير ضرورية`;
+
+let chatHistory = [];
+let isTyping = false;
+let isDark = true;
+let currentUser = null;
+
+/* ── AUTH STATE LISTENER — runs on every page load ── */
+onAuthStateChanged(auth, (user) => {
+  hideAuthLoading();
+  if (user) {
+    currentUser = user;
+    enterApp(user);
+  } else {
+    currentUser = null;
+    showWelcome();
+  }
+});
+
+/* ── SCREEN HELPERS ── */
+function hideAuthLoading() {
+  document.getElementById('auth-loading').classList.add('hidden');
+}
+
+function showWelcome() {
+  document.getElementById('welcome').classList.remove('hidden');
+  document.getElementById('app').classList.remove('visible');
+  newChat();
+  chatHistory = [];
+  isTyping = false;
+  const sb = document.getElementById('send-btn');
+  if (sb) sb.disabled = false;
+}
+
+function enterApp(user) {
+  // Populate sidebar with real user info (or guest defaults)
+  const name = user ? user.displayName || 'مستخدم Niro' : 'ضيف';
+  const initial = name.charAt(0).toUpperCase();
+  const avatarEl = document.getElementById('sb-avatar');
+  const usernameEl = document.getElementById('sb-username');
+  const emailEl = document.getElementById('sb-email');
+
+  if (avatarEl) {
+    if (user && user.photoURL) {
+      avatarEl.innerHTML = `<img src="${user.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
+    } else {
+      avatarEl.textContent = initial;
+    }
+  }
+  if (usernameEl) usernameEl.textContent = name;
+  if (emailEl) emailEl.textContent = user ? user.email : 'وضع الضيف';
+
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('app').classList.add('visible');
+}
+
+/* ── GOOGLE SIGN IN ── */
+window.signInWithGoogle = async function() {
+  const btn = document.getElementById('btn-google');
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = '...جارٍ تسجيل الدخول';
+  try {
+    await signInWithPopup(auth, provider);
+    // onAuthStateChanged will handle the rest
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg> تسجيل الدخول بـ Google`;
+    if (err.code === 'auth/popup-closed-by-user') {
+      errEl.textContent = '';
+    } else if (err.code === 'auth/popup-blocked') {
+      errEl.textContent = '⚠️ تم حظر النافذة المنبثقة. يرجى السماح بها في المتصفح.';
+    } else {
+      errEl.textContent = '⚠️ حدث خطأ، يرجى المحاولة مرة أخرى.';
+    }
+  }
+};
+
+/* ── GUEST MODE ── */
+window.continueAsGuest = function() {
+  currentUser = null;
+  enterApp(null);
+};
+
+/* ── LOGOUT ── */
+window.logout = async function() {
+  closeSidebar();
+  if (currentUser) {
+    try { await signOut(auth); } catch(e) {}
+    // onAuthStateChanged fires → showWelcome()
+  } else {
+    currentUser = null;
+    showWelcome();
+  }
+};
+
+/* ── SIDEBAR ── */
+window.openSidebar = function() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+};
+
+window.closeSidebar = function() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+};
+
+/* ── DARK / LIGHT MODE ── */
+window.toggleDarkMode = function() {
+  isDark = !isDark;
+  document.documentElement.classList.toggle('light', !isDark);
+  const btn = document.getElementById('theme-toggle');
+  const sub = document.getElementById('theme-sub');
+  if (btn) btn.classList.toggle('off', !isDark);
+  if (sub) sub.textContent = isDark ? 'مفعّل' : 'غير مفعّل';
+};
+
+/* ── SUB PAGES ── */
+const SETTINGS_HTML = `
+  <div class="page-section">
+    <div class="page-section-title">الحساب</div>
+    <div class="page-row">
+      <div><div class="page-row-label">نوع الحساب</div><div class="page-row-sub">الخطة المجانية</div></div>
+      <span class="page-tag">مجاني</span>
+    </div>
+    <div class="page-row">
+      <div><div class="page-row-label">المستخدم</div></div>
+      <div class="page-row-info" id="settings-user-info">—</div>
+    </div>
+  </div>
+  <div class="page-section">
+    <div class="page-section-title">التفضيلات</div>
+    <div class="page-row">
+      <div><div class="page-row-label">اللغة</div><div class="page-row-sub">لغة الواجهة</div></div>
+      <div class="page-row-info">العربية</div>
+    </div>
+    <div class="page-row">
+      <div><div class="page-row-label">الوضع الداكن</div><div class="page-row-sub" id="theme-sub">مفعّل</div></div>
+      <button class="page-toggle" id="theme-toggle" onclick="toggleDarkMode()"></button>
+    </div>
+    <div class="page-row">
+      <div><div class="page-row-label">الأصوات</div><div class="page-row-sub">أصوات الإشعارات</div></div>
+      <button class="page-toggle off" onclick="this.classList.toggle('off')"></button>
+    </div>
+  </div>
+  <div class="page-section">
+    <div class="page-section-title">التطبيق</div>
+    <div class="page-row">
+      <div><div class="page-row-label">الإصدار</div></div>
+      <div class="page-row-info">v1.0.0 Beta</div>
+    </div>
+    <div class="page-row">
+      <div><div class="page-row-label">النموذج</div></div>
+      <div class="page-row-info">Niro AI Demo</div>
+    </div>
+  </div>`;
+
+const HELP_HTML = `
+  <div class="page-section">
+    <div class="page-section-title">الأسئلة الشائعة</div>
+    <div class="help-card">
+      <div class="help-card-title">كيف أبدأ محادثة جديدة؟</div>
+      <div class="help-card-sub">اضغط على زر "جديد" في أعلى الشاشة أو "محادثة جديدة" في القائمة الجانبية.</div>
+    </div>
+    <div class="help-card">
+      <div class="help-card-title">هل يتذكر Niro محادثاتي السابقة؟</div>
+      <div class="help-card-sub">في النسخة التجريبية الحالية، لا يتم حفظ المحادثات. سيتم إضافة هذه الميزة قريباً مع Firebase.</div>
+    </div>
+    <div class="help-card">
+      <div class="help-card-title">ما هي اللغات المدعومة؟</div>
+      <div class="help-card-sub">يدعم Niro AI العربية والإنجليزية بشكل كامل.</div>
+    </div>
+    <div class="help-card">
+      <div class="help-card-title">هل بياناتي آمنة؟</div>
+      <div class="help-card-sub">نعم، نحن نأخذ خصوصيتك بجدية. لا يتم مشاركة بياناتك مع أي طرف ثالث.</div>
+    </div>
+  </div>
+  <div class="page-divider"></div>
+  <div class="page-section">
+    <div class="page-section-title">تواصل معنا</div>
+    <div class="page-row">
+      <div><div class="page-row-label">البريد الإلكتروني</div><div class="page-row-sub">للدعم الفني</div></div>
+      <div class="page-row-info" style="color:var(--neon);font-size:.75rem">support@niroai.app</div>
+    </div>
+    <div class="page-row">
+      <div><div class="page-row-label">الإصدار الحالي</div></div>
+      <div class="page-row-info">v1.0.0 Beta</div>
+    </div>
+  </div>`;
+
+window.openPage = function(type) {
+  closeSidebar();
+  const overlay = document.getElementById('page-overlay');
+  const title = document.getElementById('page-title');
+  const body = document.getElementById('page-body');
+  if (type === 'settings') {
+    title.textContent = 'الإعدادات';
+    body.innerHTML = SETTINGS_HTML;
+    const btn = document.getElementById('theme-toggle');
+    const sub = document.getElementById('theme-sub');
+    const info = document.getElementById('settings-user-info');
+    if (btn) btn.classList.toggle('off', !isDark);
+    if (sub) sub.textContent = isDark ? 'مفعّل' : 'غير مفعّل';
+    if (info) info.textContent = currentUser ? currentUser.email : 'ضيف';
+  } else {
+    title.textContent = 'المساعدة والدعم';
+    body.innerHTML = HELP_HTML;
+  }
+  setTimeout(() => overlay.classList.add('show'), 10);
+};
+
+window.closePage = function() {
+  document.getElementById('page-overlay').classList.remove('show');
+};
+
+/* ── CHAT ── */
+window.newChat = function() {
+  chatHistory = [];
+  document.getElementById('chat-area').innerHTML = `
+    <div class="empty-state" id="empty-state">
+      <div class="empty-logo"><div class="empty-gem"></div></div>
+      <div class="empty-title">كيف يمكنني مساعدتك؟</div>
+      <div class="empty-sub">اسألني أي شيء — أنا هنا للمساعدة دائماً</div>
+      <div class="suggestions">
+        <button class="sugg-btn" onclick="sendSuggestion('اشرح لي كيف يعمل الذكاء الاصطناعي')">🤖 اشرح لي كيف يعمل الذكاء الاصطناعي</button>
+        <button class="sugg-btn" onclick="sendSuggestion('ساعدني في كتابة رسالة احترافية')">✍️ ساعدني في كتابة رسالة احترافية</button>
+        <button class="sugg-btn" onclick="sendSuggestion('ما هي أفضل طريقة لتعلم البرمجة؟')">💻 ما هي أفضل طريقة لتعلم البرمجة؟</button>
+      </div>
+    </div>`;
+};
+
+function getTime() {
+  return new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute: '2-digit'});
+}
+
+function addUserBubble(text) {
+  const es = document.getElementById('empty-state');
+  if (es) es.remove();
+  const ca = document.getElementById('chat-area');
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = `<div class="bubble">${text.replace(/\n/g,'<br>')}</div><div class="msg-time">${getTime()}</div>`;
+  ca.appendChild(row);
+  ca.scrollTop = ca.scrollHeight;
+}
+
+function addTypingIndicator() {
+  const ca = document.getElementById('chat-area');
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
+  row.id = 'typing-row';
+  row.innerHTML = `<div class="ai-label"><div class="ai-dot"><div class="ai-dot-gem"></div></div><span class="ai-label-text">Niro AI</span></div><div class="bubble typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  ca.appendChild(row);
+  ca.scrollTop = ca.scrollHeight;
+}
+
+function addAIBubble(text) {
+  const tr = document.getElementById('typing-row');
+  if (tr) tr.remove();
+  const ca = document.getElementById('chat-area');
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
+  row.innerHTML = `<div class="ai-label"><div class="ai-dot"><div class="ai-dot-gem"></div></div><span class="ai-label-text">Niro AI</span></div><div class="bubble">${text.replace(/\n/g,'<br>')}</div><div class="msg-time">${getTime()}</div>`;
+  ca.appendChild(row);
+  ca.scrollTop = ca.scrollHeight;
+}
+
+window.sendMessage = async function() {
+  if (isTyping) return;
+  const inp = document.getElementById('msg-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  inp.style.height = 'auto';
+  addUserBubble(text);
+  isTyping = true;
+  document.getElementById('send-btn').disabled = true;
+  addTypingIndicator();
+
+  // Add user message to history
+  
+
+chatHistory.push({ role: 'user', content: text });
+
+  try {
+    const res = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatHistory })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const reply = data.reply || 'عذراً، لم أتمكن من الرد.';
+    chatHistory.push({ role: 'assistant', content: reply });
+    addAIBubble(reply);
+  } catch (err) {
+    console.error('OpenRouter error:', err);
+    const errMsg = err?.message || String(err);
+    addAIBubble(`⚠️ خطأ: ${errMsg}`);
+  } finally {
+    isTyping = false;
+    document.getElementById('send-btn').disabled = false;
+  }
+};
+
+window.sendSuggestion = function(text) {
+  document.getElementById('msg-input').value = text;
+  window.sendMessage();
+};
+
+window.handleKey = function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    window.sendMessage();
+  }
+};
+
+window.autoResize = function(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 130) + 'px';
+};
+</script>
+</body>
+</html>
