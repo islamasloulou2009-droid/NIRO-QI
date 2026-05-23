@@ -350,6 +350,18 @@ import {
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  serverTimestamp,
+  doc,
+  setDoc,
+  limit
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* ── FIREBASE INIT ── */
 const firebaseConfig = {
@@ -364,6 +376,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: 'select_account' });
 
@@ -380,6 +393,7 @@ let chatHistory = [];
 let isTyping = false;
 let isDark = true;
 let currentUser = null;
+let currentConversationId = null;
 
 /* ── AUTH STATE LISTENER — runs on every page load ── */
 onAuthStateChanged(auth, (user) => {
@@ -403,13 +417,13 @@ function showWelcome() {
   document.getElementById('app').classList.remove('visible');
   newChat();
   chatHistory = [];
+  currentConversationId = null;
   isTyping = false;
   const sb = document.getElementById('send-btn');
   if (sb) sb.disabled = false;
 }
 
-function enterApp(user) {
-  // Populate sidebar with real user info (or guest defaults)
+async function enterApp(user) {
   const name = user ? user.displayName || 'مستخدم Niro' : 'ضيف';
   const initial = name.charAt(0).toUpperCase();
   const avatarEl = document.getElementById('sb-avatar');
@@ -428,6 +442,101 @@ function enterApp(user) {
 
   document.getElementById('welcome').classList.add('hidden');
   document.getElementById('app').classList.add('visible');
+
+  if (user) {
+    await loadConversations();
+  }
+}
+
+/* ── FIRESTORE: LOAD CONVERSATIONS LIST ── */
+async function loadConversations() {
+  if (!currentUser) return;
+  const sbList = document.getElementById('sb-list');
+  sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">⏳</div><div class="sb-empty-text">جارٍ التحميل...</div></div>';
+  try {
+    const q = query(
+      collection(db, 'users', currentUser.uid, 'conversations'),
+      orderBy('updatedAt', 'desc'),
+      limit(20)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">💬</div><div class="sb-empty-text">لا توجد محادثات بعد<br/>ابدأ محادثة جديدة!</div></div>';
+      return;
+    }
+    sbList.innerHTML = '';
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      const item = document.createElement('div');
+      item.className = 'sb-item' + (docSnap.id === currentConversationId ? ' active' : '');
+      item.innerHTML = `<span class="sb-item-icon">💬</span><span class="sb-item-text">${data.title || 'محادثة'}</span>`;
+      item.onclick = () => { loadConversation(docSnap.id); window.closeSidebar(); };
+      sbList.appendChild(item);
+    });
+  } catch(e) {
+    sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">💬</div><div class="sb-empty-text">لا توجد محادثات بعد</div></div>';
+  }
+}
+
+/* ── FIRESTORE: LOAD ONE CONVERSATION ── */
+async function loadConversation(convId) {
+  if (!currentUser) return;
+  currentConversationId = convId;
+  chatHistory = [];
+  const ca = document.getElementById('chat-area');
+  ca.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.85rem">⏳ جارٍ التحميل...</div>';
+  try {
+    const q = query(
+      collection(db, 'users', currentUser.uid, 'conversations', convId, 'messages'),
+      orderBy('timestamp', 'asc')
+    );
+    const snap = await getDocs(q);
+    ca.innerHTML = '';
+    snap.forEach(docSnap => {
+      const msg = docSnap.data();
+      if (msg.role === 'user') {
+        addUserBubble(msg.content, true);
+        chatHistory.push({ role: 'user', content: msg.content });
+      } else {
+        addAIBubble(msg.content, true);
+        chatHistory.push({ role: 'assistant', content: msg.content });
+      }
+    });
+    ca.scrollTop = ca.scrollHeight;
+    await loadConversations();
+  } catch(e) {
+    ca.innerHTML = '';
+    window.newChat();
+  }
+}
+
+/* ── FIRESTORE: SAVE MESSAGE ── */
+async function saveMessage(role, content) {
+  if (!currentUser) return;
+  try {
+    if (!currentConversationId) {
+      const title = content.slice(0, 40) + (content.length > 40 ? '...' : '');
+      const convRef = doc(collection(db, 'users', currentUser.uid, 'conversations'));
+      await setDoc(convRef, {
+        title,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      currentConversationId = convRef.id;
+    } else {
+      await setDoc(
+        doc(db, 'users', currentUser.uid, 'conversations', currentConversationId),
+        { updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    }
+    await addDoc(
+      collection(db, 'users', currentUser.uid, 'conversations', currentConversationId, 'messages'),
+      { role, content, timestamp: serverTimestamp() }
+    );
+  } catch(e) {
+    console.error('Firestore save error:', e);
+  }
 }
 
 /* ── GOOGLE SIGN IN ── */
@@ -598,6 +707,7 @@ window.closePage = function() {
 /* ── CHAT ── */
 window.newChat = function() {
   chatHistory = [];
+  currentConversationId = null;
   document.getElementById('chat-area').innerHTML = `
     <div class="empty-state" id="empty-state">
       <div class="empty-logo"><div class="empty-gem"></div></div>
@@ -615,12 +725,13 @@ function getTime() {
   return new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute: '2-digit'});
 }
 
-function addUserBubble(text) {
+function addUserBubble(text, instant = false) {
   const es = document.getElementById('empty-state');
   if (es) es.remove();
   const ca = document.getElementById('chat-area');
   const row = document.createElement('div');
   row.className = 'msg-row user';
+  if (instant) row.style.animation = 'none';
   row.innerHTML = `<div class="bubble">${text.replace(/\n/g,'<br>')}</div><div class="msg-time">${getTime()}</div>`;
   ca.appendChild(row);
   ca.scrollTop = ca.scrollHeight;
@@ -636,12 +747,13 @@ function addTypingIndicator() {
   ca.scrollTop = ca.scrollHeight;
 }
 
-function addAIBubble(text) {
+function addAIBubble(text, instant = false) {
   const tr = document.getElementById('typing-row');
   if (tr) tr.remove();
   const ca = document.getElementById('chat-area');
   const row = document.createElement('div');
   row.className = 'msg-row ai';
+  if (instant) row.style.animation = 'none';
   row.innerHTML = `<div class="ai-label"><div class="ai-dot"><div class="ai-dot-gem"></div></div><span class="ai-label-text">Niro AI</span></div><div class="bubble">${text.replace(/\n/g,'<br>')}</div><div class="msg-time">${getTime()}</div>`;
   ca.appendChild(row);
   ca.scrollTop = ca.scrollHeight;
@@ -659,10 +771,8 @@ window.sendMessage = async function() {
   document.getElementById('send-btn').disabled = true;
   addTypingIndicator();
 
-  // Add user message to history
-  
-
-chatHistory.push({ role: 'user', content: text });
+  chatHistory.push({ role: 'user', content: text });
+  await saveMessage('user', text);
 
   try {
     const res = await fetch(BACKEND_URL, {
@@ -675,8 +785,10 @@ chatHistory.push({ role: 'user', content: text });
     const reply = data.reply || 'عذراً، لم أتمكن من الرد.';
     chatHistory.push({ role: 'assistant', content: reply });
     addAIBubble(reply);
+    await saveMessage('assistant', reply);
+    if (currentUser) await loadConversations();
   } catch (err) {
-    console.error('OpenRouter error:', err);
+    console.error('Send error:', err);
     const errMsg = err?.message || String(err);
     addAIBubble(`⚠️ خطأ: ${errMsg}`);
   } finally {
