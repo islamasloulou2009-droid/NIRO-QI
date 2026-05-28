@@ -103,6 +103,9 @@ body{display:flex;align-items:center;justify-content:center}
 .sb-delete-btn{background:none;border:none;cursor:pointer;font-size:.8rem;padding:.2rem .4rem;border-radius:6px;opacity:0;transition:opacity .2s !important;flex-shrink:0;color:var(--text-muted)}
 .sb-item:hover .sb-delete-btn{opacity:1}
 .sb-delete-btn:hover{background:rgba(248,113,113,.15);color:#f87171}
+.sb-rename-btn{background:none;border:none;cursor:pointer;font-size:.8rem;padding:.2rem .4rem;border-radius:6px;opacity:0;transition:opacity .2s !important;flex-shrink:0;color:var(--text-muted)}
+.sb-item:hover .sb-rename-btn{opacity:1}
+.sb-rename-btn:hover{background:rgba(79,143,255,.15);color:var(--neon)}
 .sb-footer{padding:1rem .9rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:2px}
 .sb-footer-btn{display:flex;align-items:center;gap:.6rem;width:100%;padding:.65rem .75rem;background:none;border:none;color:var(--text-secondary);font-size:.83rem;cursor:pointer;border-radius:10px;transition:all .15s;font-family:inherit;direction:rtl}
 .sb-footer-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
@@ -364,7 +367,8 @@ import {
   doc,
   setDoc,
   limit,
-  deleteDoc
+  deleteDoc,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* ── FIREBASE INIT ── */
@@ -484,10 +488,15 @@ async function loadConversations() {
       item.innerHTML = `
         <span class="sb-item-icon">💬</span>
         <span class="sb-item-text">${data.title || 'محادثة'}</span>
+        <button class="sb-rename-btn" title="تعديل الاسم">✏️</button>
         <button class="sb-delete-btn" title="حذف">🗑️</button>
       `;
       item.querySelector('.sb-item-text').onclick = () => { loadConversation(docSnap.id); window.closeSidebar(); };
       item.querySelector('.sb-item-icon').onclick = () => { loadConversation(docSnap.id); window.closeSidebar(); };
+      item.querySelector('.sb-rename-btn').onclick = (e) => {
+        e.stopPropagation();
+        renameConversation(docSnap.id, data.title || 'محادثة', item);
+      };
       item.querySelector('.sb-delete-btn').onclick = (e) => {
         e.stopPropagation();
         deleteConversation(docSnap.id);
@@ -496,6 +505,24 @@ async function loadConversations() {
     });
   } catch(e) {
     sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">💬</div><div class="sb-empty-text">لا توجد محادثات بعد</div></div>';
+  }
+}
+
+/* ── FIRESTORE: RENAME CONVERSATION ── */
+async function renameConversation(convId, currentTitle, itemEl) {
+  const newTitle = prompt('أدخل الاسم الجديد للمحادثة:', currentTitle);
+  if (newTitle === null) return; // ألغى المستخدم
+  const trimmed = newTitle.trim();
+  if (!trimmed) return; // اسم فارغ — احتفظ بالقديم
+  try {
+    await updateDoc(doc(db, 'users', currentUser.uid, 'conversations', convId), {
+      title: trimmed
+    });
+    const textEl = itemEl.querySelector('.sb-item-text');
+    if (textEl) textEl.textContent = trimmed;
+  } catch(e) {
+    console.error('Rename error:', e);
+    alert('حدث خطأ أثناء التعديل، حاول مجدداً.');
   }
 }
 
