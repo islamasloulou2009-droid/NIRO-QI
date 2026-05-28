@@ -103,9 +103,18 @@ body{display:flex;align-items:center;justify-content:center}
 .sb-delete-btn{background:none;border:none;cursor:pointer;font-size:.8rem;padding:.2rem .4rem;border-radius:6px;opacity:0;transition:opacity .2s !important;flex-shrink:0;color:var(--text-muted)}
 .sb-item:hover .sb-delete-btn{opacity:1}
 .sb-delete-btn:hover{background:rgba(248,113,113,.15);color:#f87171}
-.sb-rename-btn{background:none;border:none;cursor:pointer;font-size:.8rem;padding:.2rem .4rem;border-radius:6px;opacity:0;transition:opacity .2s !important;flex-shrink:0;color:var(--text-muted)}
-.sb-item:hover .sb-rename-btn{opacity:1}
-.sb-rename-btn:hover{background:rgba(79,143,255,.15);color:var(--neon)}
+.sb-rename-btn{display:none}
+.sb-delete-btn{display:none}
+.sb-more-btn{background:none;border:none;cursor:pointer;font-size:1rem;padding:.2rem .5rem;border-radius:6px;opacity:0;transition:opacity .2s !important;flex-shrink:0;color:var(--text-muted);line-height:1;letter-spacing:.05em}
+.sb-item:hover .sb-more-btn{opacity:1}
+.sb-more-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
+.sb-dropdown{position:fixed;z-index:999;background:var(--bg-card);border:1px solid var(--border-bright);border-radius:12px;padding:.4rem;min-width:170px;box-shadow:0 8px 32px rgba(0,0,0,.45);display:none}
+.sb-dropdown.open{display:block}
+.sb-dd-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem .8rem;background:none;border:none;color:var(--text-primary);font-size:.83rem;cursor:pointer;border-radius:8px;transition:background .15s;font-family:inherit;direction:rtl;text-align:right}
+.sb-dd-item:hover{background:var(--bg-hover)}
+.sb-dd-item.danger{color:#f87171}
+.sb-dd-item.danger:hover{background:rgba(248,113,113,.1)}
+.sb-dd-sep{height:1px;background:var(--border);margin:.3rem .4rem}
 .sb-footer{padding:1rem .9rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:2px}
 .sb-footer-btn{display:flex;align-items:center;gap:.6rem;width:100%;padding:.65rem .75rem;background:none;border:none;color:var(--text-secondary);font-size:.83rem;cursor:pointer;border-radius:10px;transition:all .15s;font-family:inherit;direction:rtl}
 .sb-footer-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
@@ -273,6 +282,13 @@ body{display:flex;align-items:center;justify-content:center}
         <div class="sb-empty-icon">💬</div>
         <div class="sb-empty-text">لا توجد محادثات بعد<br/>ابدأ محادثة جديدة!</div>
       </div>
+    </div>
+    <!-- DROPDOWN MENU -->
+    <div class="sb-dropdown" id="sb-dropdown">
+      <button class="sb-dd-item" id="dd-rename">✏️ &nbsp; تغيير الاسم</button>
+      <button class="sb-dd-item" id="dd-pin">📌 &nbsp; تثبيت المحادثة</button>
+      <div class="sb-dd-sep"></div>
+      <button class="sb-dd-item danger" id="dd-delete">🗑️ &nbsp; حذف المحادثة</button>
     </div>
     <div class="sb-footer">
       <button class="sb-footer-btn" onclick="openPage('settings')">⚙️ &nbsp; الإعدادات</button>
@@ -490,6 +506,7 @@ async function loadConversations() {
         <span class="sb-item-text">${data.title || 'محادثة'}</span>
         <button class="sb-rename-btn" title="تعديل الاسم">✏️</button>
         <button class="sb-delete-btn" title="حذف">🗑️</button>
+        <button class="sb-more-btn" title="خيارات">•••</button>
       `;
       item.querySelector('.sb-item-text').onclick = () => { loadConversation(docSnap.id); window.closeSidebar(); };
       item.querySelector('.sb-item-icon').onclick = () => { loadConversation(docSnap.id); window.closeSidebar(); };
@@ -501,12 +518,75 @@ async function loadConversations() {
         e.stopPropagation();
         deleteConversation(docSnap.id);
       };
+      item.querySelector('.sb-more-btn').onclick = (e) => {
+        e.stopPropagation();
+        openDropdown(e, docSnap.id, data.title || 'محادثة', data.pinned || false, item);
+      };
       sbList.appendChild(item);
     });
   } catch(e) {
     sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">💬</div><div class="sb-empty-text">لا توجد محادثات بعد</div></div>';
   }
 }
+
+/* ── DROPDOWN MENU ── */
+let ddCurrentId = null;
+let ddCurrentTitle = null;
+let ddCurrentItem = null;
+
+function openDropdown(e, convId, title, pinned, itemEl) {
+  const dd = document.getElementById('sb-dropdown');
+  const pinBtn = document.getElementById('dd-pin');
+  pinBtn.innerHTML = pinned ? '📌 &nbsp; إلغاء التثبيت' : '📌 &nbsp; تثبيت المحادثة';
+  ddCurrentId = convId;
+  ddCurrentTitle = title;
+  ddCurrentItem = itemEl;
+
+  // تحديد موضع الـ dropdown
+  const rect = e.target.getBoundingClientRect();
+  dd.style.top = (rect.bottom + 4) + 'px';
+  dd.style.right = (window.innerWidth - rect.right - 10) + 'px';
+  dd.classList.add('open');
+}
+
+function closeDropdown() {
+  document.getElementById('sb-dropdown').classList.remove('open');
+  ddCurrentId = null;
+}
+
+// إغلاق عند الضغط خارج القائمة
+document.addEventListener('click', () => closeDropdown());
+
+document.getElementById('dd-rename').onclick = (e) => {
+  e.stopPropagation();
+  closeDropdown();
+  if (ddCurrentId) renameConversation(ddCurrentId, ddCurrentTitle, ddCurrentItem);
+};
+
+document.getElementById('dd-pin').onclick = async (e) => {
+  e.stopPropagation();
+  const id = ddCurrentId;
+  const item = ddCurrentItem;
+  closeDropdown();
+  if (!id || !currentUser) return;
+  try {
+    const convDoc = doc(db, 'users', currentUser.uid, 'conversations', id);
+    const snap = await getDocs(query(collection(db, 'users', currentUser.uid, 'conversations'), orderBy('updatedAt','desc'), limit(20)));
+    const current = snap.docs.find(d => d.id === id);
+    const pinned = current ? (current.data().pinned || false) : false;
+    await updateDoc(convDoc, { pinned: !pinned });
+    const icon = item ? item.querySelector('.sb-item-icon') : null;
+    if (icon) icon.textContent = !pinned ? '📌' : '💬';
+    await loadConversations();
+  } catch(e) { console.error(e); }
+};
+
+document.getElementById('dd-delete').onclick = (e) => {
+  e.stopPropagation();
+  const id = ddCurrentId;
+  closeDropdown();
+  if (id) deleteConversation(id);
+};
 
 /* ── FIRESTORE: RENAME CONVERSATION ── */
 async function renameConversation(convId, currentTitle, itemEl) {
