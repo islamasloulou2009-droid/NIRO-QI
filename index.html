@@ -154,6 +154,28 @@ body{display:flex;align-items:center;justify-content:center}
 .help-card:hover{background:var(--bg-hover)}
 .help-card-title{font-size:.88rem;font-weight:600;margin-bottom:.3rem}
 .help-card-sub{font-size:.78rem;color:var(--text-muted);line-height:1.5}
+
+/* Accordion */
+.acc-item{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;overflow:hidden;direction:rtl}
+.acc-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;cursor:pointer;gap:.75rem;transition:background .15s}
+.acc-header:hover{background:var(--bg-hover)}
+.acc-icon{font-size:1rem;flex-shrink:0}
+.acc-title{flex:1;font-size:.88rem;font-weight:600;color:var(--text-primary)}
+.acc-arrow{font-size:.75rem;color:var(--text-muted);transition:transform .25s;flex-shrink:0}
+.acc-item.open .acc-arrow{transform:rotate(180deg)}
+.acc-body{max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s}
+.acc-item.open .acc-body{max-height:200px}
+.acc-body-inner{padding:.1rem 1rem 1rem;font-size:.82rem;color:var(--text-secondary);line-height:1.7}
+.about-card{background:linear-gradient(135deg,rgba(42,74,170,.15),rgba(109,77,201,.15));border:1px solid rgba(79,143,255,.2);border-radius:14px;padding:1.2rem;direction:rtl}
+.about-logo{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem}
+.about-logo-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--neon),var(--purple));display:flex;align-items:center;justify-content:center}
+.about-logo-gem{width:18px;height:18px;clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%);background:#fff}
+.about-name{font-size:1.1rem;font-weight:700;background:linear-gradient(135deg,var(--neon),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.about-desc{font-size:.82rem;color:var(--text-secondary);line-height:1.7;margin-bottom:1rem}
+.about-row{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border)}
+.about-row:last-child{border-bottom:none}
+.about-label{font-size:.78rem;color:var(--text-muted)}
+.about-value{font-size:.78rem;color:var(--text-primary);font-weight:500}
 .page-divider{height:1px;background:var(--border);margin:1.25rem 0}
 
 /* ── AUTH LOADING ── */
@@ -1014,33 +1036,103 @@ const SETTINGS_HTML = `
 const HELP_HTML = `
   <div class="page-section">
     <div class="page-section-title">الأسئلة الشائعة</div>
-    <div class="help-card">
-      <div class="help-card-title">كيف أبدأ محادثة جديدة؟</div>
-      <div class="help-card-sub">اضغط على زر "جديد" في أعلى الشاشة أو "محادثة جديدة" في القائمة الجانبية.</div>
+
+    <div class="acc-item" onclick="toggleAcc(this)">
+      <div class="acc-header">
+        <span class="acc-icon">💬</span>
+        <span class="acc-title">كيف أبدأ محادثة جديدة؟</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body"><div class="acc-body-inner">اضغط على زر "جديد" في أعلى الشاشة أو "محادثة جديدة" في القائمة الجانبية.</div></div>
     </div>
-    <div class="help-card">
-      <div class="help-card-title">هل يتذكر Niro محادثاتي السابقة؟</div>
-      <div class="help-card-sub">نعم! يتم حفظ محادثاتك تلقائياً عند تسجيل الدخول بـ Google.</div>
+
+    <div class="acc-item" onclick="toggleAcc(this)">
+      <div class="acc-header">
+        <span class="acc-icon">🔍</span>
+        <span class="acc-title">كيف أبحث في المحادثات؟</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body"><div class="acc-body-inner">استخدم مربع البحث في القائمة الجانبية للعثور على المحادثات بسرعة.</div></div>
     </div>
-    <div class="help-card">
-      <div class="help-card-title">ما هي اللغات المدعومة؟</div>
-      <div class="help-card-sub">يدعم Niro AI العربية والإنجليزية بشكل كامل.</div>
+
+    <div class="acc-item" onclick="toggleAcc(this)">
+      <div class="acc-header">
+        <span class="acc-icon">📌</span>
+        <span class="acc-title">كيف أثبت محادثة؟</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body"><div class="acc-body-inner">اضغط على زر الثلاث نقاط ••• بجانب المحادثة ثم اختر "تثبيت المحادثة".</div></div>
     </div>
-    <div class="help-card">
-      <div class="help-card-title">هل بياناتي آمنة؟</div>
-      <div class="help-card-sub">نعم، نحن نأخذ خصوصيتك بجدية. لا يتم مشاركة بياناتك مع أي طرف ثالث.</div>
+
+    <div class="acc-item" onclick="toggleAcc(this)">
+      <div class="acc-header">
+        <span class="acc-icon">🗑️</span>
+        <span class="acc-title">كيف أحذف محادثة؟</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body"><div class="acc-body-inner">اضغط على زر الثلاث نقاط ••• ثم اختر "حذف المحادثة".</div></div>
+    </div>
+
+    <div class="acc-item" onclick="toggleAcc(this)">
+      <div class="acc-header">
+        <span class="acc-icon">👤</span>
+        <span class="acc-title">هل يعمل وضع الضيف؟</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body"><div class="acc-body-inner">نعم، يمكن استخدام التطبيق كضيف، لكن بعض المميزات المتقدمة قد تحتاج إلى تسجيل الدخول.</div></div>
+    </div>
+
+    <div class="acc-item" onclick="toggleAcc(this)">
+      <div class="acc-header">
+        <span class="acc-icon">💾</span>
+        <span class="acc-title">كيف أحفظ محادثاتي؟</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body"><div class="acc-body-inner">عند تسجيل الدخول بحساب Google يتم حفظ المحادثات تلقائيًا.</div></div>
+    </div>
+
+    <div class="acc-item" onclick="toggleAcc(this)">
+      <div class="acc-header">
+        <span class="acc-icon">🌐</span>
+        <span class="acc-title">ما هي اللغات المدعومة؟</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body"><div class="acc-body-inner">يدعم Niro AI العربية والإنجليزية بشكل كامل.</div></div>
+    </div>
+
+    <div class="acc-item" onclick="toggleAcc(this)">
+      <div class="acc-header">
+        <span class="acc-icon">🔒</span>
+        <span class="acc-title">هل بياناتي آمنة؟</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body"><div class="acc-body-inner">نعم، نحن نأخذ خصوصيتك بجدية. لا يتم مشاركة بياناتك مع أي طرف ثالث.</div></div>
     </div>
   </div>
+
   <div class="page-divider"></div>
+
   <div class="page-section">
     <div class="page-section-title">تواصل معنا</div>
     <div class="page-row">
-      <div><div class="page-row-label">البريد الإلكتروني</div><div class="page-row-sub">للدعم الفني</div></div>
+      <div><div class="page-row-label">📧 البريد الإلكتروني</div><div class="page-row-sub">للدعم الفني</div></div>
       <div class="page-row-info" style="color:var(--neon);font-size:.75rem">support@niroai.app</div>
     </div>
-    <div class="page-row">
-      <div><div class="page-row-label">الإصدار الحالي</div></div>
-      <div class="page-row-info">v1.0.0 Beta</div>
+  </div>
+
+  <div class="page-divider"></div>
+
+  <div class="page-section">
+    <div class="page-section-title">حول Niro AI</div>
+    <div class="about-card">
+      <div class="about-logo">
+        <div class="about-logo-mark"><div class="about-logo-gem"></div></div>
+        <span class="about-name">Niro AI</span>
+      </div>
+      <div class="about-desc">Niro AI هو مساعد ذكي حديث مصمم لتقديم تجربة محادثة سهلة وسريعة باللغة العربية.</div>
+      <div class="about-row"><span class="about-label">الإصدار</span><span class="about-value">v1.0.0 Beta</span></div>
+      <div class="about-row"><span class="about-label">المطور</span><span class="about-value">Islam</span></div>
+      <div class="about-row"><span class="about-label">النموذج</span><span class="about-value">Niro AI Demo</span></div>
     </div>
   </div>`;
 
@@ -1067,6 +1159,13 @@ window.openPage = function(type) {
 
 window.closePage = function() {
   document.getElementById('page-overlay').classList.remove('show');
+};
+
+window.toggleAcc = function(item) {
+  const isOpen = item.classList.contains('open');
+  // إغلاق كل الأخرى
+  document.querySelectorAll('.acc-item.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
 };
 
 /* ── CHAT ── */
