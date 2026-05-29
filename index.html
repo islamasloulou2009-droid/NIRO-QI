@@ -223,6 +223,20 @@ body{display:flex;align-items:center;justify-content:center}
 .send-btn:active{transform:scale(.93)}
 .send-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none}
 .input-hint{text-align:center;font-size:.67rem;color:var(--text-muted);margin-top:.55rem;direction:rtl}
+
+/* ── MESSAGE ACTIONS ── */
+.msg-actions{display:flex;gap:.3rem;margin-top:.35rem;opacity:0;transition:opacity .2s;padding:0 .3rem}
+.msg-row:hover .msg-actions{opacity:1}
+.msg-row.user .msg-actions{justify-content:flex-end;flex-direction:row-reverse}
+.msg-row.ai .msg-actions{justify-content:flex-start;flex-direction:row-reverse}
+.msg-action-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;padding:.3rem .5rem;border-radius:7px;font-size:.72rem;transition:all .15s;line-height:1}
+.msg-action-btn:hover{background:var(--bg-hover);color:var(--text-primary);border-color:var(--border-bright)}
+.msg-copied-toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border-bright);color:var(--text-primary);padding:.5rem 1.2rem;border-radius:10px;font-size:.8rem;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+.msg-copied-toast.show{opacity:1}
+.bubble-edit-area{width:100%;background:var(--bg-surface);border:1px solid var(--neon);border-radius:12px;color:var(--text-primary);font-size:.88rem;font-family:inherit;padding:.7rem 1rem;resize:none;outline:none;direction:rtl;line-height:1.7;min-height:60px}
+.bubble-edit-btns{display:flex;gap:.5rem;margin-top:.4rem;justify-content:flex-end}
+.bubble-edit-save{background:linear-gradient(135deg,var(--neon),var(--purple));border:none;color:#fff;padding:.4rem 1rem;border-radius:8px;font-size:.8rem;cursor:pointer;font-family:inherit}
+.bubble-edit-cancel{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);padding:.4rem .9rem;border-radius:8px;font-size:.8rem;cursor:pointer;font-family:inherit}
 </style>
 </head>
 <body>
@@ -372,6 +386,7 @@ body{display:flex;align-items:center;justify-content:center}
 
 </div>
 </div>
+<div class="msg-copied-toast" id="copied-toast">✅ تم النسخ</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -387,6 +402,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   query,
   orderBy,
   serverTimestamp,
@@ -737,10 +753,10 @@ async function loadConversation(convId) {
     snap.forEach(docSnap => {
       const msg = docSnap.data();
       if (msg.role === 'user') {
-        addUserBubble(msg.content, true);
+        addUserBubble(msg.content, true, docSnap.id);
         chatHistory.push({ role: 'user', content: msg.content });
       } else {
-        addAIBubble(msg.content, true);
+        addAIBubble(msg.content, true, docSnap.id);
         chatHistory.push({ role: 'assistant', content: msg.content });
       }
     });
@@ -967,14 +983,22 @@ function getTime() {
   return new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute: '2-digit'});
 }
 
-function addUserBubble(text, instant = false) {
+function addUserBubble(text, instant = false, msgId = null) {
   const es = document.getElementById('empty-state');
   if (es) es.remove();
   const ca = document.getElementById('chat-area');
   const row = document.createElement('div');
   row.className = 'msg-row user';
+  if (msgId) row.dataset.msgId = msgId;
   if (instant) row.style.animation = 'none';
-  row.innerHTML = `<div class="bubble">${text.replace(/\n/g,'<br>')}</div><div class="msg-time">${getTime()}</div>`;
+  row.innerHTML = `
+    <div class="bubble">${text.replace(/\n/g,'<br>')}</div>
+    <div class="msg-time">${getTime()}</div>
+    <div class="msg-actions">
+      <button class="msg-action-btn" title="نسخ" onclick="copyMessage(this)">📋</button>
+      <button class="msg-action-btn" title="تعديل" onclick="editMessage(this)">✏️</button>
+      <button class="msg-action-btn" title="حذف" onclick="deleteMessage(this)">🗑️</button>
+    </div>`;
   ca.appendChild(row);
   ca.scrollTop = ca.scrollHeight;
 }
@@ -989,17 +1013,92 @@ function addTypingIndicator() {
   ca.scrollTop = ca.scrollHeight;
 }
 
-function addAIBubble(text, instant = false) {
+function addAIBubble(text, instant = false, msgId = null) {
   const tr = document.getElementById('typing-row');
   if (tr) tr.remove();
   const ca = document.getElementById('chat-area');
   const row = document.createElement('div');
   row.className = 'msg-row ai';
+  if (msgId) row.dataset.msgId = msgId;
   if (instant) row.style.animation = 'none';
-  row.innerHTML = `<div class="ai-label"><div class="ai-dot"><div class="ai-dot-gem"></div></div><span class="ai-label-text">Niro AI</span></div><div class="bubble">${text.replace(/\n/g,'<br>')}</div><div class="msg-time">${getTime()}</div>`;
+  row.innerHTML = `
+    <div class="ai-label"><div class="ai-dot"><div class="ai-dot-gem"></div></div><span class="ai-label-text">Niro AI</span></div>
+    <div class="bubble">${text.replace(/\n/g,'<br>')}</div>
+    <div class="msg-time">${getTime()}</div>
+    <div class="msg-actions">
+      <button class="msg-action-btn" title="نسخ" onclick="copyMessage(this)">📋</button>
+      <button class="msg-action-btn" title="تعديل" onclick="editMessage(this)">✏️</button>
+      <button class="msg-action-btn" title="حذف" onclick="deleteMessage(this)">🗑️</button>
+    </div>`;
   ca.appendChild(row);
   ca.scrollTop = ca.scrollHeight;
 }
+
+/* ── MESSAGE ACTIONS ── */
+window.copyMessage = function(btn) {
+  const bubble = btn.closest('.msg-row').querySelector('.bubble');
+  const text = bubble.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.getElementById('copied-toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  });
+};
+
+window.deleteMessage = async function(btn) {
+  if (!confirm('هل تريد حذف هذه الرسالة؟')) return;
+  const row = btn.closest('.msg-row');
+  const msgId = row.dataset.msgId;
+  if (msgId && currentUser && currentConversationId) {
+    try {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'conversations', currentConversationId, 'messages', msgId));
+    } catch(e) { console.error('Delete msg error:', e); }
+  }
+  row.remove();
+};
+
+window.editMessage = function(btn) {
+  const row = btn.closest('.msg-row');
+  const bubble = row.querySelector('.bubble');
+  const originalText = bubble.innerText;
+  const msgId = row.dataset.msgId;
+
+  // استبدال الـ bubble بـ textarea
+  bubble.style.display = 'none';
+  const editWrap = document.createElement('div');
+  editWrap.innerHTML = `
+    <textarea class="bubble-edit-area" rows="3">${originalText}</textarea>
+    <div class="bubble-edit-btns">
+      <button class="bubble-edit-cancel">إلغاء</button>
+      <button class="bubble-edit-save">حفظ</button>
+    </div>`;
+  row.insertBefore(editWrap, bubble);
+
+  const textarea = editWrap.querySelector('textarea');
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+  editWrap.querySelector('.bubble-edit-cancel').onclick = () => {
+    editWrap.remove();
+    bubble.style.display = '';
+  };
+
+  editWrap.querySelector('.bubble-edit-save').onclick = async () => {
+    const newText = textarea.value.trim();
+    if (!newText) return;
+    bubble.innerHTML = newText.replace(/\n/g, '<br>');
+    bubble.style.display = '';
+    editWrap.remove();
+    if (msgId && currentUser && currentConversationId) {
+      try {
+        await updateDoc(
+          doc(db, 'users', currentUser.uid, 'conversations', currentConversationId, 'messages', msgId),
+          { content: newText }
+        );
+      } catch(e) { console.error('Edit msg error:', e); }
+    }
+  };
+};
 
 window.sendMessage = async function() {
   if (isTyping) return;
