@@ -497,12 +497,34 @@ async function loadConversations() {
       return;
     }
     sbList.innerHTML = '';
-    snap.forEach(docSnap => {
+    const docs = snap.docs;
+    // فرز: المثبتة أولاً ثم الباقي حسب updatedAt
+    const pinned = docs.filter(d => d.data().pinned);
+    const unpinned = docs.filter(d => !d.data().pinned);
+    const sorted = [...pinned, ...unpinned];
+
+    if (pinned.length > 0) {
+      const pinnedSection = document.createElement('div');
+      pinnedSection.className = 'sb-section';
+      pinnedSection.textContent = 'المثبتة';
+      sbList.appendChild(pinnedSection);
+    }
+
+    let addedUnpinnedHeader = false;
+    sorted.forEach(docSnap => {
       const data = docSnap.data();
+
+      if (!data.pinned && !addedUnpinnedHeader && pinned.length > 0) {
+        addedUnpinnedHeader = true;
+        const sec = document.createElement('div');
+        sec.className = 'sb-section';
+        sec.textContent = 'المحادثات الأخيرة';
+        sbList.appendChild(sec);
+      }
       const item = document.createElement('div');
       item.className = 'sb-item' + (docSnap.id === currentConversationId ? ' active' : '');
       item.innerHTML = `
-        <span class="sb-item-icon">💬</span>
+        <span class="sb-item-icon">${data.pinned ? '📌' : '💬'}</span>
         <span class="sb-item-text">${data.title || 'محادثة'}</span>
         <button class="sb-rename-btn" title="تعديل الاسم">✏️</button>
         <button class="sb-delete-btn" title="حذف">🗑️</button>
