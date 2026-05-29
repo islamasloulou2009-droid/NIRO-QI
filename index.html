@@ -108,9 +108,8 @@ body{display:flex;align-items:center;justify-content:center}
 .sb-more-btn{background:none;border:none;cursor:pointer;font-size:1rem;padding:.2rem .5rem;border-radius:6px;opacity:0;transition:opacity .2s !important;flex-shrink:0;color:var(--text-muted);line-height:1;letter-spacing:.05em}
 .sb-item:hover .sb-more-btn{opacity:1}
 .sb-more-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
-.sb-dropdown{position:fixed;z-index:999;background:var(--bg-card);border:1px solid var(--border-bright);border-radius:12px;padding:.4rem;min-width:170px;box-shadow:0 8px 32px rgba(0,0,0,.45);display:none}
-.sb-dropdown.open{display:block}
-.sb-dd-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem .8rem;background:none;border:none;color:var(--text-primary);font-size:.83rem;cursor:pointer;border-radius:8px;transition:background .15s;font-family:inherit;direction:rtl;text-align:right}
+.sb-dropdown{position:fixed;z-index:9999;background:var(--bg-card);border:1px solid var(--border-bright);border-radius:12px;padding:.4rem;min-width:175px;box-shadow:0 8px 32px rgba(0,0,0,.6);visibility:hidden;opacity:0;pointer-events:none;transition:opacity .15s,visibility .15s}
+.sb-dropdown.open{visibility:visible;opacity:1;pointer-events:all}.sb-dd-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem .8rem;background:none;border:none;color:var(--text-primary);font-size:.83rem;cursor:pointer;border-radius:8px;transition:background .15s;font-family:inherit;direction:rtl;text-align:right}
 .sb-dd-item:hover{background:var(--bg-hover)}
 .sb-dd-item.danger{color:#f87171}
 .sb-dd-item.danger:hover{background:rgba(248,113,113,.1)}
@@ -533,60 +532,80 @@ async function loadConversations() {
 let ddCurrentId = null;
 let ddCurrentTitle = null;
 let ddCurrentItem = null;
+let ddPinned = false;
 
 function openDropdown(e, convId, title, pinned, itemEl) {
+  e.stopPropagation();
   const dd = document.getElementById('sb-dropdown');
   const pinBtn = document.getElementById('dd-pin');
   pinBtn.innerHTML = pinned ? '📌 &nbsp; إلغاء التثبيت' : '📌 &nbsp; تثبيت المحادثة';
   ddCurrentId = convId;
   ddCurrentTitle = title;
   ddCurrentItem = itemEl;
+  ddPinned = pinned;
 
-  // تحديد موضع الـ dropdown
-  const rect = e.target.getBoundingClientRect();
+  dd.classList.remove('open');
+
+  const rect = e.currentTarget.getBoundingClientRect();
+  const sidebarEl = document.getElementById('sidebar');
+  const sidebarRect = sidebarEl.getBoundingClientRect();
+
+  dd.style.position = 'fixed';
   dd.style.top = (rect.bottom + 4) + 'px';
-  dd.style.right = (window.innerWidth - rect.right - 10) + 'px';
+  dd.style.right = (window.innerWidth - sidebarRect.right + 8) + 'px';
+  dd.style.left = 'auto';
+
   dd.classList.add('open');
 }
 
 function closeDropdown() {
   document.getElementById('sb-dropdown').classList.remove('open');
-  ddCurrentId = null;
 }
 
-// إغلاق عند الضغط خارج القائمة
-document.addEventListener('click', () => closeDropdown());
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('sb-dropdown');
+  if (!dd.contains(e.target)) closeDropdown();
+});
 
-document.getElementById('dd-rename').onclick = (e) => {
-  e.stopPropagation();
-  closeDropdown();
-  if (ddCurrentId) renameConversation(ddCurrentId, ddCurrentTitle, ddCurrentItem);
-};
+function initDropdownListeners() {
+  document.getElementById('dd-rename').onclick = (e) => {
+    e.stopPropagation();
+    const id = ddCurrentId;
+    const title = ddCurrentTitle;
+    const item = ddCurrentItem;
+    closeDropdown();
+    if (id) renameConversation(id, title, item);
+  };
 
-document.getElementById('dd-pin').onclick = async (e) => {
-  e.stopPropagation();
-  const id = ddCurrentId;
-  const item = ddCurrentItem;
-  closeDropdown();
-  if (!id || !currentUser) return;
-  try {
-    const convDoc = doc(db, 'users', currentUser.uid, 'conversations', id);
-    const snap = await getDocs(query(collection(db, 'users', currentUser.uid, 'conversations'), orderBy('updatedAt','desc'), limit(20)));
-    const current = snap.docs.find(d => d.id === id);
-    const pinned = current ? (current.data().pinned || false) : false;
-    await updateDoc(convDoc, { pinned: !pinned });
-    const icon = item ? item.querySelector('.sb-item-icon') : null;
-    if (icon) icon.textContent = !pinned ? '📌' : '💬';
-    await loadConversations();
-  } catch(e) { console.error(e); }
-};
+  document.getElementById('dd-pin').onclick = async (e) => {
+    e.stopPropagation();
+    const id = ddCurrentId;
+    const item = ddCurrentItem;
+    const pinned = ddPinned;
+    closeDropdown();
+    if (!id || !currentUser) return;
+    try {
+      await updateDoc(doc(db, 'users', currentUser.uid, 'conversations', id), { pinned: !pinned });
+      const icon = item ? item.querySelector('.sb-item-icon') : null;
+      if (icon) icon.textContent = !pinned ? '📌' : '💬';
+      await loadConversations();
+    } catch(err) { console.error('Pin error:', err); }
+  };
 
-document.getElementById('dd-delete').onclick = (e) => {
-  e.stopPropagation();
-  const id = ddCurrentId;
-  closeDropdown();
-  if (id) deleteConversation(id);
-};
+  document.getElementById('dd-delete').onclick = (e) => {
+    e.stopPropagation();
+    const id = ddCurrentId;
+    closeDropdown();
+    if (id) deleteConversation(id);
+  };
+}
+
+// تشغيل الـ listeners بعد تحميل الـ DOM
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDropdownListeners);
+} else {
+  initDropdownListeners();
+}
 
 /* ── FIRESTORE: RENAME CONVERSATION ── */
 async function renameConversation(convId, currentTitle, itemEl) {
