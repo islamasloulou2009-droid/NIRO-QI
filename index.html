@@ -579,9 +579,108 @@ function renderConversationList(convs, searchQuery = '') {
   });
 }
 
+/* ── GUEST MODE: LOCAL STORAGE ── */
+const GUEST_KEY = 'niro_guest_conversations';
+
+function guestGetAll() {
+  try { return JSON.parse(localStorage.getItem(GUEST_KEY) || '[]'); } catch { return []; }
+}
+function guestSaveAll(convs) {
+  localStorage.setItem(GUEST_KEY, JSON.stringify(convs));
+}
+function guestNewId() {
+  return 'guest_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+}
+function guestLoadConversations() {
+  const convs = guestGetAll();
+  allConversations = convs.map(c => ({ id: c.id, title: c.title, pinned: c.pinned || false, updatedAt: c.updatedAt }));
+  const sbList = document.getElementById('sb-list');
+  if (convs.length === 0) {
+    sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">💬</div><div class="sb-empty-text">لا توجد محادثات بعد<br/>ابدأ محادثة جديدة!</div></div>';
+    return;
+  }
+  const searchVal = document.getElementById('sb-search')?.value || '';
+  if (searchVal.trim()) { window.filterConversations(searchVal); }
+  else { renderConversationList(allConversations); }
+}
+function guestSaveMessage(role, content) {
+  const convs = guestGetAll();
+  let conv = convs.find(c => c.id === currentConversationId);
+  if (!conv) {
+    const title = content.slice(0, 40) + (content.length > 40 ? '...' : '');
+    conv = { id: guestNewId(), title, pinned: false, updatedAt: Date.now(), messages: [] };
+    currentConversationId = conv.id;
+    convs.unshift(conv);
+  } else {
+    conv.updatedAt = Date.now();
+  }
+  const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  conv.messages.push({ id: msgId, role, content, timestamp: Date.now() });
+  guestSaveAll(convs);
+  guestLoadConversations();
+  return msgId;
+}
+function guestLoadConversation(convId) {
+  const convs = guestGetAll();
+  const conv = convs.find(c => c.id === convId);
+  if (!conv) return;
+  currentConversationId = convId;
+  chatHistory = [];
+  const ca = document.getElementById('chat-area');
+  ca.innerHTML = '';
+  (conv.messages || []).forEach(msg => {
+    if (msg.role === 'user') {
+      addUserBubble(msg.content, true, msg.id);
+      chatHistory.push({ role: 'user', content: msg.content });
+    } else {
+      addAIBubble(msg.content, true, msg.id);
+      chatHistory.push({ role: 'assistant', content: msg.content });
+    }
+  });
+  ca.scrollTop = ca.scrollHeight;
+  guestLoadConversations();
+}
+function guestDeleteConversation(convId) {
+  if (!confirm('هل تريد حذف هذه المحادثة نهائياً؟')) return;
+  let convs = guestGetAll();
+  convs = convs.filter(c => c.id !== convId);
+  guestSaveAll(convs);
+  if (currentConversationId === convId) window.newChat();
+  guestLoadConversations();
+}
+function guestRenameConversation(convId, currentTitle, itemEl) {
+  const newTitle = prompt('أدخل الاسم الجديد للمحادثة:', currentTitle);
+  if (!newTitle || !newTitle.trim()) return;
+  const convs = guestGetAll();
+  const conv = convs.find(c => c.id === convId);
+  if (conv) { conv.title = newTitle.trim(); guestSaveAll(convs); }
+  const textEl = itemEl?.querySelector('.sb-item-text');
+  if (textEl) textEl.textContent = newTitle.trim();
+  guestLoadConversations();
+}
+function guestPinConversation(convId, itemEl) {
+  const convs = guestGetAll();
+  const conv = convs.find(c => c.id === convId);
+  if (conv) { conv.pinned = !conv.pinned; guestSaveAll(convs); }
+  guestLoadConversations();
+}
+function guestDeleteMessage(convId, msgId) {
+  const convs = guestGetAll();
+  const conv = convs.find(c => c.id === convId);
+  if (conv) { conv.messages = conv.messages.filter(m => m.id !== msgId); guestSaveAll(convs); }
+}
+function guestUpdateMessage(convId, msgId, newContent) {
+  const convs = guestGetAll();
+  const conv = convs.find(c => c.id === convId);
+  if (conv) {
+    const msg = conv.messages.find(m => m.id === msgId);
+    if (msg) { msg.content = newContent; guestSaveAll(convs); }
+  }
+}
+
 /* ── FIRESTORE: LOAD CONVERSATIONS LIST ── */
 async function loadConversations() {
-  if (!currentUser) return;
+  if (!currentUser) { guestLoadConversations(); return; }
   const sbList = document.getElementById('sb-list');
   sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">⏳</div><div class="sb-empty-text">جارٍ التحميل...</div></div>';
   try {
@@ -674,7 +773,8 @@ function initDropdownListeners() {
     const item = ddCurrentItem;
     const pinned = ddPinned;
     closeDropdown();
-    if (!id || !currentUser) return;
+    if (!id) return;
+    if (!currentUser) { guestPinConversation(id, item); return; }
     try {
       await updateDoc(doc(db, 'users', currentUser.uid, 'conversations', id), { pinned: !pinned });
       const icon = item ? item.querySelector('.sb-item-icon') : null;
@@ -700,6 +800,7 @@ if (document.readyState === 'loading') {
 
 /* ── FIRESTORE: RENAME CONVERSATION ── */
 async function renameConversation(convId, currentTitle, itemEl) {
+  if (!currentUser) { guestRenameConversation(convId, currentTitle, itemEl); return; }
   const newTitle = prompt('أدخل الاسم الجديد للمحادثة:', currentTitle);
   if (newTitle === null) return; // ألغى المستخدم
   const trimmed = newTitle.trim();
@@ -718,7 +819,7 @@ async function renameConversation(convId, currentTitle, itemEl) {
 
 /* ── FIRESTORE: DELETE CONVERSATION ── */
 async function deleteConversation(convId) {
-  if (!currentUser) return;
+  if (!currentUser) { guestDeleteConversation(convId); return; }
   if (!confirm('هل تريد حذف هذه المحادثة نهائياً؟')) return;
   try {
     const msgsSnap = await getDocs(
@@ -741,7 +842,7 @@ async function deleteConversation(convId) {
 
 /* ── FIRESTORE: LOAD ONE CONVERSATION ── */
 async function loadConversation(convId) {
-  if (!currentUser) return;
+  if (!currentUser) { guestLoadConversation(convId); return; }
   currentConversationId = convId;
   chatHistory = [];
   const ca = document.getElementById('chat-area');
@@ -773,7 +874,10 @@ async function loadConversation(convId) {
 
 /* ── FIRESTORE: SAVE MESSAGE ── */
 async function saveMessage(role, content) {
-  if (!currentUser) return;
+  if (!currentUser) {
+    guestSaveMessage(role, content);
+    return;
+  }
   try {
     if (!currentConversationId) {
       const title = content.slice(0, 40) + (content.length > 40 ? '...' : '');
@@ -1093,10 +1197,13 @@ window.deleteMessage = async function(btn) {
   if (!confirm('هل تريد حذف هذه الرسالة؟')) return;
   const row = btn.closest('.msg-row');
   const msgId = row.dataset.msgId;
-  if (msgId && currentUser && currentConversationId) {
-    try {
-      await deleteDoc(doc(db, 'users', currentUser.uid, 'conversations', currentConversationId, 'messages', msgId));
-    } catch(e) { console.error('Delete msg error:', e); }
+  if (msgId && currentConversationId) {
+    if (currentUser) {
+      try { await deleteDoc(doc(db, 'users', currentUser.uid, 'conversations', currentConversationId, 'messages', msgId)); }
+      catch(e) { console.error('Delete msg error:', e); }
+    } else {
+      guestDeleteMessage(currentConversationId, msgId);
+    }
   }
   row.remove();
 };
@@ -1133,13 +1240,17 @@ window.editMessage = function(btn) {
     bubble.innerHTML = newText.replace(/\n/g, '<br>');
     bubble.style.display = '';
     editWrap.remove();
-    if (msgId && currentUser && currentConversationId) {
-      try {
-        await updateDoc(
-          doc(db, 'users', currentUser.uid, 'conversations', currentConversationId, 'messages', msgId),
-          { content: newText }
-        );
-      } catch(e) { console.error('Edit msg error:', e); }
+    if (msgId && currentConversationId) {
+      if (currentUser) {
+        try {
+          await updateDoc(
+            doc(db, 'users', currentUser.uid, 'conversations', currentConversationId, 'messages', msgId),
+            { content: newText }
+          );
+        } catch(e) { console.error('Edit msg error:', e); }
+      } else {
+        guestUpdateMessage(currentConversationId, msgId, newText);
+      }
     }
   };
 };
@@ -1172,6 +1283,7 @@ window.sendMessage = async function() {
     addAIBubble(reply);
     await saveMessage('assistant', reply);
     if (currentUser) await loadConversations();
+    else await loadConversations();
   } catch (err) {
     console.error('Send error:', err);
     const errMsg = err?.message || String(err);
