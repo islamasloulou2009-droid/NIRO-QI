@@ -546,14 +546,22 @@ function openDropdown(e, convId, title, pinned, itemEl) {
 
   dd.classList.remove('open');
 
-  const rect = e.currentTarget.getBoundingClientRect();
-  const sidebarEl = document.getElementById('sidebar');
-  const sidebarRect = sidebarEl.getBoundingClientRect();
+  // حساب موضع الزر بالنسبة للشاشة
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const ddWidth = 175;
 
-  dd.style.position = 'fixed';
-  dd.style.top = (rect.bottom + 4) + 'px';
-  dd.style.right = (window.innerWidth - sidebarRect.right + 8) + 'px';
-  dd.style.left = 'auto';
+  let top = rect.bottom + 4;
+  let left = rect.right - ddWidth;
+
+  // تأكد أن القائمة لا تخرج من الشاشة
+  if (left < 8) left = 8;
+  if (left + ddWidth > window.innerWidth - 8) left = window.innerWidth - ddWidth - 8;
+  if (top + 160 > window.innerHeight) top = rect.top - 164;
+
+  dd.style.top = top + 'px';
+  dd.style.left = left + 'px';
+  dd.style.right = 'auto';
 
   dd.classList.add('open');
 }
