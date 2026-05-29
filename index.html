@@ -119,7 +119,13 @@ body{display:flex;align-items:center;justify-content:center}
 .sb-footer-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
 .sb-footer-btn.danger{color:#f87171}
 .sb-footer-btn.danger:hover{background:rgba(248,113,113,.08);color:#f87171}
-.sb-empty-convs{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;gap:.6rem;opacity:.5}
+.sb-search-wrap{padding:.5rem .9rem .2rem;position:relative}
+.sb-search-input{width:100%;padding:.6rem .9rem .6rem 2.2rem;background:var(--bg-surface);border:1px solid var(--border-bright);border-radius:10px;color:var(--text-primary);font-size:.82rem;font-family:inherit;outline:none;direction:rtl;transition:border-color .2s,box-shadow .2s}
+.sb-search-input:focus{border-color:var(--neon);box-shadow:0 0 0 2px rgba(79,143,255,.12)}
+.sb-search-input::placeholder{color:var(--text-muted)}
+.sb-search-icon{position:absolute;left:1.5rem;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.85rem;pointer-events:none}
+.sb-no-results{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem 1rem;gap:.4rem;opacity:.5}
+.sb-no-results-text{font-size:.78rem;color:var(--text-muted);text-align:center;direction:rtl}
 .sb-empty-icon{font-size:1.6rem}
 .sb-empty-text{font-size:.78rem;color:var(--text-muted);text-align:center;line-height:1.6;direction:rtl}
 
@@ -275,6 +281,10 @@ body{display:flex;align-items:center;justify-content:center}
       <div class="sb-new-icon">✦</div>
       محادثة جديدة
     </button>
+    <div class="sb-search-wrap">
+      <span class="sb-search-icon">🔍</span>
+      <input class="sb-search-input" id="sb-search" type="text" placeholder="ابحث في المحادثات..." oninput="filterConversations(this.value)" />
+    </div>
     <div class="sb-section">المحادثات الأخيرة</div>
     <div class="sb-list" id="sb-list">
       <div class="sb-empty-convs">
@@ -426,6 +436,7 @@ let isTyping = false;
 let isDark = true;
 let currentUser = null;
 let currentConversationId = null;
+let allConversations = []; // لحفظ كل المحادثات للبحث
 
 /* ── AUTH STATE LISTENER ── */
 onAuthStateChanged(auth, (user) => {
@@ -480,6 +491,75 @@ async function enterApp(user) {
   }
 }
 
+/* ── SEARCH ── */
+window.filterConversations = function(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    renderConversationList(allConversations);
+    return;
+  }
+  const filtered = allConversations.filter(c =>
+    (c.title || 'محادثة').toLowerCase().includes(q)
+  );
+  renderConversationList(filtered, q);
+};
+
+function renderConversationList(convs, searchQuery = '') {
+  const sbList = document.getElementById('sb-list');
+  sbList.innerHTML = '';
+
+  if (convs.length === 0) {
+    sbList.innerHTML = `<div class="sb-no-results"><div style="font-size:1.4rem">🔍</div><div class="sb-no-results-text">لا توجد نتائج</div></div>`;
+    return;
+  }
+
+  const pinned = convs.filter(c => c.pinned);
+  const unpinned = convs.filter(c => !c.pinned);
+  const sorted = [...pinned, ...unpinned];
+
+  if (pinned.length > 0 && !searchQuery) {
+    const sec = document.createElement('div');
+    sec.className = 'sb-section';
+    sec.textContent = 'المثبتة';
+    sbList.appendChild(sec);
+  }
+
+  let addedUnpinnedHeader = false;
+  sorted.forEach(data => {
+    if (!data.pinned && !addedUnpinnedHeader && pinned.length > 0 && !searchQuery) {
+      addedUnpinnedHeader = true;
+      const sec = document.createElement('div');
+      sec.className = 'sb-section';
+      sec.textContent = 'المحادثات الأخيرة';
+      sbList.appendChild(sec);
+    }
+
+    const item = document.createElement('div');
+    item.className = 'sb-item' + (data.id === currentConversationId ? ' active' : '');
+
+    // تمييز نص البحث
+    let titleHtml = data.title || 'محادثة';
+    if (searchQuery) {
+      const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      titleHtml = titleHtml.replace(regex, '<mark style="background:rgba(79,143,255,.3);color:var(--text-primary);border-radius:2px">$1</mark>');
+    }
+
+    item.innerHTML = `
+      <span class="sb-item-icon">${data.pinned ? '📌' : '💬'}</span>
+      <span class="sb-item-text">${titleHtml}</span>
+      <button class="sb-rename-btn" title="تعديل الاسم">✏️</button>
+      <button class="sb-delete-btn" title="حذف">🗑️</button>
+      <button class="sb-more-btn" title="خيارات">•••</button>
+    `;
+    item.querySelector('.sb-item-text').onclick = () => { loadConversation(data.id); window.closeSidebar(); };
+    item.querySelector('.sb-item-icon').onclick = () => { loadConversation(data.id); window.closeSidebar(); };
+    item.querySelector('.sb-rename-btn').onclick = (e) => { e.stopPropagation(); renameConversation(data.id, data.title || 'محادثة', item); };
+    item.querySelector('.sb-delete-btn').onclick = (e) => { e.stopPropagation(); deleteConversation(data.id); };
+    item.querySelector('.sb-more-btn').onclick = (e) => { e.stopPropagation(); openDropdown(e, data.id, data.title || 'محادثة', data.pinned || false, item); };
+    sbList.appendChild(item);
+  });
+}
+
 /* ── FIRESTORE: LOAD CONVERSATIONS LIST ── */
 async function loadConversations() {
   if (!currentUser) return;
@@ -493,59 +573,18 @@ async function loadConversations() {
     );
     const snap = await getDocs(q);
     if (snap.empty) {
+      allConversations = [];
       sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">💬</div><div class="sb-empty-text">لا توجد محادثات بعد<br/>ابدأ محادثة جديدة!</div></div>';
       return;
     }
-    sbList.innerHTML = '';
-    const docs = snap.docs;
-    // فرز: المثبتة أولاً ثم الباقي حسب updatedAt
-    const pinned = docs.filter(d => d.data().pinned);
-    const unpinned = docs.filter(d => !d.data().pinned);
-    const sorted = [...pinned, ...unpinned];
-
-    if (pinned.length > 0) {
-      const pinnedSection = document.createElement('div');
-      pinnedSection.className = 'sb-section';
-      pinnedSection.textContent = 'المثبتة';
-      sbList.appendChild(pinnedSection);
+    allConversations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // إذا كان هناك بحث نشط، نحافظ عليه
+    const searchVal = document.getElementById('sb-search')?.value || '';
+    if (searchVal.trim()) {
+      window.filterConversations(searchVal);
+    } else {
+      renderConversationList(allConversations);
     }
-
-    let addedUnpinnedHeader = false;
-    sorted.forEach(docSnap => {
-      const data = docSnap.data();
-
-      if (!data.pinned && !addedUnpinnedHeader && pinned.length > 0) {
-        addedUnpinnedHeader = true;
-        const sec = document.createElement('div');
-        sec.className = 'sb-section';
-        sec.textContent = 'المحادثات الأخيرة';
-        sbList.appendChild(sec);
-      }
-      const item = document.createElement('div');
-      item.className = 'sb-item' + (docSnap.id === currentConversationId ? ' active' : '');
-      item.innerHTML = `
-        <span class="sb-item-icon">${data.pinned ? '📌' : '💬'}</span>
-        <span class="sb-item-text">${data.title || 'محادثة'}</span>
-        <button class="sb-rename-btn" title="تعديل الاسم">✏️</button>
-        <button class="sb-delete-btn" title="حذف">🗑️</button>
-        <button class="sb-more-btn" title="خيارات">•••</button>
-      `;
-      item.querySelector('.sb-item-text').onclick = () => { loadConversation(docSnap.id); window.closeSidebar(); };
-      item.querySelector('.sb-item-icon').onclick = () => { loadConversation(docSnap.id); window.closeSidebar(); };
-      item.querySelector('.sb-rename-btn').onclick = (e) => {
-        e.stopPropagation();
-        renameConversation(docSnap.id, data.title || 'محادثة', item);
-      };
-      item.querySelector('.sb-delete-btn').onclick = (e) => {
-        e.stopPropagation();
-        deleteConversation(docSnap.id);
-      };
-      item.querySelector('.sb-more-btn').onclick = (e) => {
-        e.stopPropagation();
-        openDropdown(e, docSnap.id, data.title || 'محادثة', data.pinned || false, item);
-      };
-      sbList.appendChild(item);
-    });
   } catch(e) {
     sbList.innerHTML = '<div class="sb-empty-convs"><div class="sb-empty-icon">💬</div><div class="sb-empty-text">لا توجد محادثات بعد</div></div>';
   }
@@ -795,6 +834,8 @@ window.openSidebar = function() {
 window.closeSidebar = function() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('show');
+  const search = document.getElementById('sb-search');
+  if (search) { search.value = ''; window.filterConversations(''); }
 };
 
 /* ── DARK / LIGHT MODE ── */
