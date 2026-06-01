@@ -1219,6 +1219,19 @@ function addTypingIndicator() {
   ca.scrollTop = ca.scrollHeight;
 }
 
+function formatMarkdown(text) {
+  return text
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:var(--bg-surface);padding:.1rem .3rem;border-radius:4px;font-size:.85em;direction:ltr;display:inline-block">$1</code>')
+    .replace(/^### (.+)$/gm, '<strong style="font-size:.95rem;color:var(--neon)">$1</strong>')
+    .replace(/^## (.+)$/gm, '<strong style="font-size:1rem;color:var(--neon)">$1</strong>')
+    .replace(/^# (.+)$/gm, '<strong style="font-size:1.05rem;color:var(--neon)">$1</strong>')
+    .replace(/^[\*\-] (.+)$/gm, '• $1')
+    .replace(/\n/g, '<br>');
+}
+
 function addAIBubble(text, instant = false, msgId = null) {
   const tr = document.getElementById('typing-row');
   if (tr) tr.remove();
@@ -1231,7 +1244,7 @@ function addAIBubble(text, instant = false, msgId = null) {
   if (instant) row.style.animation = 'none';
   row.innerHTML = `
     <div class="ai-label"><div class="ai-dot"><div class="ai-dot-gem"></div></div><span class="ai-label-text">Niro AI</span></div>
-    <div class="bubble">${text.replace(/\n/g,'<br>')}</div>
+    <div class="bubble">${formatMarkdown(text)}</div>
     <div class="msg-time">${getTime()}</div>
     <div class="msg-actions">
       <button class="msg-action-btn" title="نسخ" onclick="copyMessage(this)">📋</button>
