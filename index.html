@@ -253,9 +253,9 @@ body{display:flex;align-items:center;justify-content:center}
 .msg-row.ai .msg-actions{justify-content:flex-start;flex-direction:row-reverse}
 .msg-action-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;padding:.3rem .5rem;border-radius:7px;font-size:.72rem;transition:all .15s;line-height:1}
 .msg-action-btn:hover{background:var(--bg-hover);color:var(--text-primary);border-color:var(--border-bright)}
-.msg-regen-btn{display:flex;align-items:center;gap:.4rem;background:none;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;padding:.35rem .8rem;border-radius:8px;font-size:.75rem;transition:all .2s;font-family:inherit;margin-top:.3rem;margin-right:.3rem}
-.msg-regen-btn:hover{border-color:var(--neon);color:var(--neon);background:rgba(79,143,255,.08)}
-.msg-regen-btn:disabled{opacity:.4;cursor:not-allowed}
+.msg-regen-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;padding:.3rem .5rem;border-radius:7px;font-size:.82rem;transition:all .2s !important;font-family:inherit;line-height:1}
+.msg-regen-btn:hover{border-color:var(--neon);color:var(--neon);background:rgba(79,143,255,.08);transform:rotate(180deg)}
+.msg-regen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .msg-copied-toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border-bright);color:var(--text-primary);padding:.5rem 1.2rem;border-radius:10px;font-size:.8rem;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
 .msg-copied-toast.show{opacity:1}
 .bubble-edit-area{width:100%;background:var(--bg-surface);border:1px solid var(--neon);border-radius:12px;color:var(--text-primary);font-size:.88rem;font-family:inherit;padding:.7rem 1rem;resize:none;outline:none;direction:rtl;line-height:1.7;min-height:60px}
@@ -1250,8 +1250,8 @@ function addAIBubble(text, instant = false, msgId = null) {
       <button class="msg-action-btn" title="نسخ" onclick="copyMessage(this)">📋</button>
       <button class="msg-action-btn" title="تعديل" onclick="editMessage(this)">✏️</button>
       <button class="msg-action-btn" title="حذف" onclick="deleteMessage(this)">🗑️</button>
-    </div>
-    <button class="msg-regen-btn" onclick="regenerateResponse(this)">🔄 إعادة توليد الرد</button>`;
+      <button class="msg-action-btn msg-regen-btn" title="إعادة توليد الرد" onclick="regenerateResponse(this)">↻</button>
+    </div>`;
   ca.appendChild(row);
   ca.scrollTop = ca.scrollHeight;
 }
