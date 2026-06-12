@@ -254,6 +254,27 @@ body{display:flex;align-items:center;justify-content:center}
 .send-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none}
 .input-hint{text-align:center;font-size:.67rem;color:var(--text-muted);margin-top:.55rem;direction:rtl}
 
+/* ── COINS SYSTEM ── */
+.coins-badge{display:flex;align-items:center;gap:.3rem;background:linear-gradient(135deg,rgba(42,74,170,.2),rgba(109,77,201,.2));border:1px solid rgba(79,143,255,.25);border-radius:20px;padding:.25rem .7rem;font-size:.75rem;font-weight:600;color:var(--neon);cursor:pointer;transition:all .2s;white-space:nowrap}
+.coins-badge:hover{background:linear-gradient(135deg,rgba(42,74,170,.35),rgba(109,77,201,.35));border-color:var(--neon)}
+.coins-icon{font-size:.85rem}
+.coins-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;display:flex;align-items:center;justify-content:center;padding:1.5rem;backdrop-filter:blur(4px)}
+.coins-modal{background:var(--bg-card);border:1px solid var(--border-bright);border-radius:20px;padding:2rem 1.5rem;max-width:320px;width:100%;text-align:center;direction:rtl}
+.coins-modal-icon{font-size:3rem;margin-bottom:1rem}
+.coins-modal-title{font-size:1.1rem;font-weight:700;margin-bottom:.5rem;color:var(--text-primary)}
+.coins-modal-desc{font-size:.85rem;color:var(--text-secondary);margin-bottom:1.5rem;line-height:1.6}
+.coins-modal-balance{font-size:.8rem;color:var(--text-muted);margin-bottom:1.5rem}
+.btn-watch-ad{width:100%;padding:.9rem;background:linear-gradient(135deg,var(--neon),var(--purple));border:none;border-radius:12px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;margin-bottom:.75rem}
+.btn-watch-ad:hover{transform:scale(1.02);box-shadow:0 0 25px rgba(79,143,255,.4)}
+.btn-watch-ad:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-close-modal{width:100%;padding:.7rem;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-secondary);font-size:.85rem;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-close-modal:hover{background:var(--bg-hover);color:var(--text-primary)}
+.coins-success{color:#4ade80;font-size:.9rem;font-weight:600;margin-bottom:1rem;display:none}
+.ad-loading{display:none;flex-direction:column;align-items:center;gap:.75rem;margin-bottom:1rem}
+.ad-bar{width:100%;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.ad-bar-fill{height:100%;background:linear-gradient(90deg,var(--neon),var(--purple));border-radius:3px;width:0%;transition:width 3s linear}
+.ad-text{font-size:.78rem;color:var(--text-muted)}
+
 /* ── MESSAGE ACTIONS ── */
 .msg-actions{display:flex;gap:.3rem;margin-top:.35rem;opacity:0;transition:opacity .2s;padding:0 .3rem}
 .msg-row:hover .msg-actions{opacity:1}
@@ -375,6 +396,10 @@ body{display:flex;align-items:center;justify-content:center}
       </svg>
       جديد
     </button>
+    <div class="coins-badge" id="coins-badge" onclick="showCoinsModal()">
+      <span class="coins-icon">🪙</span>
+      <span id="coins-display">...</span>
+    </div>
   </div>
 
   <!-- CHAT AREA -->
@@ -420,6 +445,23 @@ body{display:flex;align-items:center;justify-content:center}
 </div>
 </div>
 <div class="msg-copied-toast" id="copied-toast">✅ تم النسخ</div>
+
+<!-- COINS MODAL -->
+<div class="coins-modal-overlay" id="coins-modal-overlay" style="display:none" onclick="hideCoinsModal(event)">
+  <div class="coins-modal" onclick="event.stopPropagation()">
+    <div class="coins-modal-icon">🪙</div>
+    <div class="coins-modal-title" id="modal-title">نفدت عملاتك!</div>
+    <div class="coins-modal-desc" id="modal-desc">شاهد إعلاناً قصيراً للحصول على 50 عملة إضافية مجاناً</div>
+    <div class="coins-modal-balance">رصيدك الحالي: <strong id="modal-balance">0</strong> 🪙</div>
+    <div class="coins-success" id="coins-success">🎉 حصلت على 50 عملة!</div>
+    <div class="ad-loading" id="ad-loading">
+      <div class="ad-text">جارٍ تحميل الإعلان...</div>
+      <div class="ad-bar"><div class="ad-bar-fill" id="ad-bar-fill"></div></div>
+    </div>
+    <button class="btn-watch-ad" id="btn-watch-ad" onclick="watchAd()">📺 شاهد إعلاناً (+50 عملة)</button>
+    <button class="btn-close-modal" onclick="hideCoinsModal()">إغلاق</button>
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -471,7 +513,14 @@ let isTyping = false;
 let isDark = true;
 let currentUser = null;
 let currentConversationId = null;
-let allConversations = []; // لحفظ كل المحادثات للبحث
+let allConversations = [];
+let userCoins = 0;
+
+const COINS_PER_MESSAGE = 1;
+const GUEST_COINS_KEY = 'niro_guest_coins';
+const NEW_USER_COINS = 100;
+const GUEST_NEW_COINS = 30;
+const AD_REWARD_COINS = 50;
 
 /* ── AUTH STATE LISTENER ── */
 onAuthStateChanged(auth, (user) => {
@@ -524,6 +573,7 @@ async function enterApp(user) {
   if (user) {
     await loadConversations();
   }
+  await initCoins();
 }
 
 /* ── SEARCH ── */
@@ -693,6 +743,109 @@ function guestUpdateMessage(convId, msgId, newContent) {
     if (msg) { msg.content = newContent; guestSaveAll(convs); }
   }
 }
+
+/* ── COINS SYSTEM ── */
+async function initCoins() {
+  if (currentUser) {
+    // Google user — Firestore
+    const userRef = doc(db, 'users', currentUser.uid);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists() && userSnap.data().coins !== undefined) {
+      userCoins = userSnap.data().coins;
+    } else {
+      userCoins = NEW_USER_COINS;
+      await setDoc(userRef, { coins: userCoins }, { merge: true });
+    }
+  } else {
+    // Guest — localStorage
+    const stored = localStorage.getItem(GUEST_COINS_KEY);
+    userCoins = stored !== null ? parseInt(stored) : GUEST_NEW_COINS;
+    if (stored === null) localStorage.setItem(GUEST_COINS_KEY, GUEST_NEW_COINS);
+  }
+  updateCoinsDisplay();
+}
+
+function updateCoinsDisplay() {
+  const display = document.getElementById('coins-display');
+  if (display) display.textContent = userCoins;
+  const balance = document.getElementById('modal-balance');
+  if (balance) balance.textContent = userCoins;
+}
+
+async function deductCoin() {
+  userCoins = Math.max(0, userCoins - COINS_PER_MESSAGE);
+  if (currentUser) {
+    await setDoc(doc(db, 'users', currentUser.uid), { coins: userCoins }, { merge: true });
+  } else {
+    localStorage.setItem(GUEST_COINS_KEY, userCoins);
+  }
+  updateCoinsDisplay();
+}
+
+async function addCoins(amount) {
+  userCoins += amount;
+  if (currentUser) {
+    await setDoc(doc(db, 'users', currentUser.uid), { coins: userCoins }, { merge: true });
+  } else {
+    localStorage.setItem(GUEST_COINS_KEY, userCoins);
+  }
+  updateCoinsDisplay();
+}
+
+window.showCoinsModal = function() {
+  const overlay = document.getElementById('coins-modal-overlay');
+  const title = document.getElementById('modal-title');
+  const desc = document.getElementById('modal-desc');
+  const success = document.getElementById('coins-success');
+  const adLoading = document.getElementById('ad-loading');
+  const btn = document.getElementById('btn-watch-ad');
+  title.textContent = 'عملاتك 🪙';
+  desc.textContent = 'شاهد إعلاناً قصيراً للحصول على 50 عملة إضافية مجاناً';
+  success.style.display = 'none';
+  adLoading.style.display = 'none';
+  btn.disabled = false;
+  btn.textContent = '📺 شاهد إعلاناً (+50 عملة)';
+  updateCoinsDisplay();
+  overlay.style.display = 'flex';
+};
+
+function showOutOfCoinsModal() {
+  window.showCoinsModal();
+  document.getElementById('modal-title').textContent = 'نفدت عملاتك! 😔';
+  document.getElementById('modal-desc').textContent = 'شاهد إعلاناً قصيراً للحصول على 50 عملة إضافية مجاناً';
+}
+
+window.hideCoinsModal = function(e) {
+  if (!e || e.target === document.getElementById('coins-modal-overlay')) {
+    document.getElementById('coins-modal-overlay').style.display = 'none';
+  }
+};
+
+window.watchAd = async function() {
+  const btn = document.getElementById('btn-watch-ad');
+  const adLoading = document.getElementById('ad-loading');
+  const fill = document.getElementById('ad-bar-fill');
+  const success = document.getElementById('coins-success');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ جارٍ تشغيل الإعلان...';
+  adLoading.style.display = 'flex';
+
+  // محاكاة الإعلان
+  setTimeout(() => { fill.style.width = '100%'; }, 100);
+
+  setTimeout(async () => {
+    adLoading.style.display = 'none';
+    await addCoins(AD_REWARD_COINS);
+    success.style.display = 'block';
+    btn.textContent = '✅ تم! +50 عملة';
+    document.getElementById('modal-title').textContent = 'شكراً! 🎉';
+    document.getElementById('modal-desc').textContent = 'تم إضافة 50 عملة إلى رصيدك';
+    setTimeout(() => {
+      document.getElementById('coins-modal-overlay').style.display = 'none';
+    }, 2000);
+  }, 3200);
+};
 
 /* ── FIRESTORE: LOAD CONVERSATIONS LIST ── */
 async function loadConversations() {
@@ -1366,6 +1519,13 @@ window.sendMessage = async function() {
   const inp = document.getElementById('msg-input');
   const text = inp.value.trim();
   if (!text) return;
+
+  // فحص العملات
+  if (userCoins <= 0) {
+    showOutOfCoinsModal();
+    return;
+  }
+
   inp.value = '';
   inp.style.height = 'auto';
   addUserBubble(text);
@@ -1375,6 +1535,7 @@ window.sendMessage = async function() {
 
   chatHistory.push({ role: 'user', content: text });
   await saveMessage('user', text);
+  await deductCoin();
 
   try {
     const res = await fetch(BACKEND_URL, {
